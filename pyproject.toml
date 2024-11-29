@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools"] # REQUIRED if [build-system] table is used
+build-backend = "setuptools.build_meta" # If not defined, then legacy behavior can happen.
+
+[project]
+name = "spatial_axis"
+version = "0.0"
+description = "Define relative positioning of cells along a spatial axis"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { file = "LICENSE.txt" }
+
+# This field lists other packages that your project depends on to run.
+# Any package you put here will be installed by pip when your project is
+# installed, so they must be valid existing projects.
+#
+# For an analysis of this field vs pip's requirements files see:
+# https://packaging.python.org/discussions/install-requires-vs-requirements/
+dependencies = [
+    "numpy",
+    "scikit-image",
+    "scipy",
+    "geopanads", 
+    "shapely",
+    ]
+
+[project.optional-dependencies]
+dev = ["black", "isort", "ruff"]
+test = ["coverage"]
