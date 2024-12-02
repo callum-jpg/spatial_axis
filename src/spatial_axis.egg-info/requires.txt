@@ -1,0 +1,13 @@
+numpy
+scikit-image
+scipy
+geopanads
+shapely
+
+[dev]
+black
+isort
+ruff
+
+[test]
+coverage

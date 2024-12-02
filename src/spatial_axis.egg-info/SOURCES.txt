@@ -1,0 +1,10 @@
+pyproject.toml
+src/SpatialAxis/__init__.py
+src/SpatialAxis/spatial_axis.py
+src/SpatialAxis/utility.py
+src/spatial_axis.egg-info/PKG-INFO
+src/spatial_axis.egg-info/SOURCES.txt
+src/spatial_axis.egg-info/dependency_links.txt
+src/spatial_axis.egg-info/requires.txt
+src/spatial_axis.egg-info/top_level.txt
+tests/test_spatial_axis.py
