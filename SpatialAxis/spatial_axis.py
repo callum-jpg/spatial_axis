@@ -15,10 +15,10 @@ class SpatialAxis:
         broad_annotation_order: List,
         label_to_broad_annotation_method: Literal["centroid"] = "centroid",
     ):
-    """
-    For a series of instance_shapes (cells) in an image, find their position relative
-    to another series of broad_annotation_shapes (manual/anatomical annotations).
-    """
+        """
+        For a series of instance_shapes (cells) in an image, find their position relative
+        to another series of broad_annotation_shapes (manual/anatomical annotations).
+        """
 
         self.instance_shapes = instance_shapes
         self.broad_annotation_shapes = broad_annotation_shapes
