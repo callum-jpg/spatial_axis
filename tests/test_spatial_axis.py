@@ -3,46 +3,7 @@ import numpy
 import scipy
 import shapely
 import geopandas
-
-
-def random_shapely_circles(
-    image_shape, num_circles, min_radius=15, max_radius=35, seed=None
-):
-    """Generate a list of randomly sized shapely Polygons"""
-    circles = []
-
-    numpy.random.seed(seed=seed)
-
-    for _ in range(num_circles):
-        x_center = numpy.random.uniform(0, image_shape[1])
-        y_center = numpy.random.uniform(0, image_shape[0])
-        radius = numpy.random.uniform(min_radius, max_radius)
-
-        circle = shapely.geometry.Point(x_center, y_center).buffer(radius)
-
-        circles.append(circle)
-
-    return circles
-
-
-def create_broad_annotation_polygons(image_shape: tuple):
-    """Generate all-encompassing (ie. cover the whole image) polygons
-    with smaller and smaller sizes. Used as a type of broad human annotation"""
-
-    minx, miny, maxx, maxy = 0, 0, image_shape[1], image_shape[0]
-
-    outer = shapely.geometry.box(minx, miny, maxx, maxy)
-
-    middle = shapely.affinity.scale(outer, 0.8, 0.8)
-
-    inner = shapely.affinity.scale(outer, 0.4, 0.4)
-
-    edge = shapely.difference(outer, middle)
-    cortex = shapely.difference(middle, inner)
-    medulla = inner
-
-    return edge, cortex, medulla
-
+from SpatialAxis.utility import random_shapely_circles, create_broad_annotation_polygons
 
 class TestSpatialAxis:
     def test_hierarchical_labels(self):
