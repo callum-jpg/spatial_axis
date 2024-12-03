@@ -22,6 +22,7 @@ dependencies = [
     "scipy",
     "geopanads", 
     "shapely",
+    "rasterio",
     ]
 
 [project.optional-dependencies]
