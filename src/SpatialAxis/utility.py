@@ -53,9 +53,6 @@ def create_broad_annotation_polygons(
         typing.Tuple[shapely.geometry.Polygon]: Outer, middle and inner polygons.
     """
 
-    """Generate all-encompassing (ie. cover the whole image) polygons
-    with smaller and smaller sizes. Used as a type of broad human annotation"""
-
     minx, miny, maxx, maxy = 0, 0, image_shape[1], image_shape[0]
 
     outer = shapely.geometry.box(minx, miny, maxx, maxy)
