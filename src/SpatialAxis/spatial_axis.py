@@ -42,29 +42,31 @@ def spatial_axis(
             numpy.where(centroid_broad_annotation_class == broad_annotation_class)
         ]
 
-        # If there are less then k_neighbours in a class group, set k_neighbours to this value. Otherwise,
-        # tree.query will return inf, since, for example, a group of 3 points cannot have 5 neighbours.
-        tree_k_neighbours = (
-            k_neighbours
-            if class_centroids.shape[0] > k_neighbours
-            else class_centroids.shape[0]
-        )
+        # Ensure the class has centroids
+        if class_centroids.shape[0] != 0:
+            # If there are less then k_neighbours in a class group, set k_neighbours to this value. Otherwise,
+            # tree.query will return inf, since, for example, a group of 3 points cannot have 5 neighbours.
+            tree_k_neighbours = (
+                k_neighbours
+                if class_centroids.shape[0] > k_neighbours
+                else class_centroids.shape[0]
+            )
 
-        # Create a tree
-        tree = scipy.spatial.cKDTree(class_centroids)
+            # Create a tree
+            tree = scipy.spatial.cKDTree(class_centroids)
 
-        # Based on all centroids, query their nearest neighbours. 0 if closest
-        # to themselves, otherwise the euclidean distance to the class of interest
-        distances, _ = tree.query(shape_centroids, k=tree_k_neighbours)
+            # Based on all centroids, query their nearest neighbours. 0 if closest
+            # to themselves, otherwise the euclidean distance to the class of interest
+            distances, _ = tree.query(shape_centroids, k=tree_k_neighbours)
 
-        if not tree_k_neighbours == 1:
-            # Now we have the distances to nearest neighbours depending on the value of k
-            # (first distance will be 0 if the class an item was in is queried). Now, we can
-            # calculate the mean for all neighbours. Presumably, this will identify cells that
-            # are distinctly within an annotation class, and then those that are "between" classes
-            distances = numpy.mean(distances, axis=1)
+            if not tree_k_neighbours == 1:
+                # Now we have the distances to nearest neighbours depending on the value of k
+                # (first distance will be 0 if the class an item was in is queried). Now, we can
+                # calculate the mean for all neighbours. Presumably, this will identify cells that
+                # are distinctly within an annotation class, and then those that are "between" classes
+                distances = numpy.mean(distances, axis=1)
 
-        all_dist.append(distances)
+            all_dist.append(distances)
 
     all_dist = numpy.array(all_dist).T
 

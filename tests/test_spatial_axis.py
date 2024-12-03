@@ -1,12 +1,13 @@
-from SpatialAxis import spatial_axis
-import numpy
-import scipy
-import shapely
 import geopandas
-from SpatialAxis.utility import random_shapely_circles, create_broad_annotation_polygons
+import numpy
+import shapely
+
+from SpatialAxis import spatial_axis
+from SpatialAxis.utility import (create_broad_annotation_polygons)
+
 
 class TestSpatialAxis:
-    #### TODO: reinstate labelmap support (this allows for 3D to be compatible. Otherwise, 
+    #### TODO: reinstate labelmap support (this allows for 3D to be compatible. Otherwise,
     #### shapely does not support 3D polygons)
     # def test_hierarchical_labels(self):
     #     expected = numpy.array(
@@ -80,7 +81,11 @@ class TestSpatialAxis:
             shapely.geometry.box(6, 6, 7, 7),
         ]
 
-        broad_annotation_polygons = create_broad_annotation_polygons((10, 10))
+        broad_annotation_polygons = create_broad_annotation_polygons(
+            (10, 10),
+            num_levels=3,
+            downscale_factor=0.8,
+        )
 
         cells_df = geopandas.GeoDataFrame(
             {
@@ -92,7 +97,7 @@ class TestSpatialAxis:
         broad_df = geopandas.GeoDataFrame(
             {
                 "geometry": broad_annotation_polygons,
-                "broad_annotation_id": ["edge", "cortex", "medulla"],
+                "broad_annotation_id": [1, 2, 3],
             }
         )
         # SpatialData uses label IDs as the index, so we do to
@@ -102,11 +107,12 @@ class TestSpatialAxis:
         observed = spatial_axis(
             instance_polygons=cells_df,
             broad_annotations=broad_df,
-            broad_annotation_order=["edge", "cortex", "medulla"],
+            broad_annotation_order=[1, 2, 3],
             k_neighbours=1,
         )
 
-        expected = numpy.array([-1.5, 0.0, 0.0, 1.5, 1.33333333, 1.25, 1.2])
+        expected = numpy.array(
+            [-1.3333333, 0.0, 1.3333333, 1.2, 1.1428571, 1.1111111, 1.0909091]
+        )
 
         numpy.testing.assert_almost_equal(observed, expected)
-
