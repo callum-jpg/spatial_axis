@@ -42,7 +42,10 @@ def random_shapely_circles(
 
 
 def create_broad_annotation_polygons(
-    image_shape: typing.Tuple[int, int]
+    image_shape: typing.Tuple[int, int],
+    annotation_shape: typing.Literal["box", "circle"] = "box",
+    num_levels: int = 3,
+    downscale_factor: float = 0.6,
 ) -> typing.Tuple[shapely.geometry.Polygon]:
     """Create 3 shapely box polygons, each containing the next smallest object.
 
@@ -53,18 +56,28 @@ def create_broad_annotation_polygons(
         typing.Tuple[shapely.geometry.Polygon]: Outer, middle and inner polygons.
     """
 
+    assert num_levels > 2, f"num_levels must be > 2, got {num_levels}"
+
     minx, miny, maxx, maxy = 0, 0, image_shape[1], image_shape[0]
 
-    outer = shapely.geometry.box(minx, miny, maxx, maxy)
+    if annotation_shape.casefold() == "box":
+        outer = shapely.geometry.box(minx, miny, maxx, maxy)
+    elif annotation_shape.casefold() == "circle":
+        print(max(maxx, maxy))
+        outer = shapely.geometry.Point(maxx / 2, maxy / 2).buffer(max(maxx, maxy))
 
-    middle = shapely.affinity.scale(outer, 0.8, 0.8)
+    shapes = [outer]
 
-    inner = shapely.affinity.scale(outer, 0.4, 0.4)
-
-    edge = shapely.difference(outer, middle)
-    cortex = shapely.difference(middle, inner)
-    medulla = inner
-
-    shapes = [edge, cortex, medulla]
+    for level in range(num_levels - 1):
+        # Scale the previous polygon by the scale_factor
+        scaled_shape = shapely.affinity.scale(
+            shapes[level], downscale_factor, downscale_factor
+        )
+        # Find the difference of the original shape and the scaled shape
+        prev_shape = shapely.difference(shapes[level], scaled_shape)
+        # Add the difference shape to ith position
+        shapes[level] = prev_shape
+        # Add the scaled shape (no difference) to the i+1th position
+        shapes.append(scaled_shape)
 
     return shapes
