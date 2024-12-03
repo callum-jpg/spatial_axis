@@ -1,4 +1,4 @@
-from SpatialAxis.spatial_axis import spatial_axis
+from SpatialAxis import spatial_axis
 import numpy
 import scipy
 import shapely
