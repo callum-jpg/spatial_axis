@@ -76,11 +76,23 @@ def spatial_axis(
 
 
 def assign_broad_annotation(x, lookup):
-    try:
-        return lookup.index[lookup["geometry"].contains(x)].values[0]
-    except IndexError:
-        warnings.warn(f"Centroid {x} not found in broad annotation")
-        return numpy.nan
+    if isinstance(lookup, geopandas.GeoDataFrame):
+        try:
+            return lookup.index[lookup["geometry"].contains(x)].values[0]
+        except IndexError:
+            warnings.warn(f"Centroid {x} not found in broad annotation")
+            return numpy.nan
+    elif isinstance(lookup, numpy.ndarray):
+        # Floor centroid coordinates to avoid a scenario where
+        # a centroid is defined outside the image area. This
+        # happens when centroids are at the bottom/right edge
+        # of an image
+        centroid = numpy.floor(tuple(x.coords[0])).astype(int)
+        return lookup[tuple(centroid)]
+    else:
+        raise ValueError(
+            "Expected lookup that was either a numpy array or a GeoDataFrame."
+        )
 
 
 def get_shapely_centroid(polygon):
