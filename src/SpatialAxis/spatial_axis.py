@@ -87,7 +87,10 @@ def assign_broad_annotation(x, lookup):
         # a centroid is defined outside the image area. This
         # happens when centroids are at the bottom/right edge
         # of an image
-        centroid = numpy.floor(tuple(x.coords[0])).astype(int)
+        centroid = numpy.floor(x.coords[0]).astype(int)
+        # Invert order to YX since we are using an array
+        # to define broad annotations
+        centroid = centroid[::-1]
         return lookup[tuple(centroid)]
     else:
         raise ValueError(
