@@ -1,9 +1,9 @@
 import typing
-import warnings
 
 import geopandas
 import numpy
 import scipy
+import shapely
 import skimage
 from rasterio.features import rasterize
 
@@ -11,7 +11,9 @@ from rasterio.features import rasterize
 def spatial_axis(
     instance_polygons: geopandas.GeoDataFrame,
     broad_annotations: geopandas.GeoDataFrame,
-    broad_annotation_order,
+    broad_annotation_order: typing.List[int],
+    broad_annotations_to_exclude: typing.Optional[typing.List[int]] = None,
+    exclusion_value: typing.Optional[typing.Union[int, float]] = numpy.nan,
     k_neighbours=5,
     # broad_annotation_weights,
 ):
@@ -23,13 +25,27 @@ def spatial_axis(
     )
     shape_centroids = numpy.stack(shape_centroids)
 
-    # For each polygon centroid, find which broad annotation
-    # it is contained within
-    centroid_broad_annotation_class = (
-        instance_polygons.loc[:, "geometry"]
-        .apply(lambda x: assign_broad_annotation(x.centroid, broad_annotations))
-        .values
-    )
+    if isinstance(broad_annotations, geopandas.GeoDataFrame):
+        # Convert centroids to shapely points.
+        # This enables determining where points are found in
+        # the broad_annotation GeoDataFrame
+        shape_centroid_points = [shapely.Point(x, y) for x, y in shape_centroids]
+        centroid_broad_annotation_class = broad_annotations.index[
+            broad_annotations["geometry"].apply(
+                lambda geom: any(
+                    geom.contains(point) for point in shape_centroid_points
+                )
+            )
+        ]
+        centroid_broad_annotation_class = centroid_broad_annotation_class.values
+    elif isinstance(broad_annotations, numpy.ndarray):
+        floored_shape_centroids = numpy.floor(shape_centroids).astype(int)
+        x, y = floored_shape_centroids[:, 0], floored_shape_centroids[:, 1]
+        centroid_broad_annotation_class = broad_annotations[x, y]
+    else:
+        ValueError(
+            f"Do not support broad_annotations of type {type(broad_annotations)}"
+        )
 
     # List to contain sample distance information
     all_dist = []
@@ -72,30 +88,23 @@ def spatial_axis(
 
     relative_distance = compute_relative_positioning(all_dist)
 
+    if broad_annotations_to_exclude:
+        # We will use distances that are of a broad annotation
+        # to exclude
+        floored_shape_centroids = numpy.floor(shape_centroids).astype(int)
+        # Create a mask for regions of the image that contain
+        # values to exclude
+        exclusion_mask = numpy.isin(broad_annotations, broad_annotations_to_exclude)
+
+        # Get XY coordinates for the centroids
+        x, y = floored_shape_centroids[:, 0], floored_shape_centroids[:, 1]
+        # Determine which centroids to include
+        inclusion_mask = ~exclusion_mask[x, y]
+        # Mask the original (non-floored) centroids
+        # shape_centroids = shape_centroids[inclusion_mask]
+        relative_distance[~inclusion_mask] = exclusion_value
+
     return relative_distance
-
-
-def assign_broad_annotation(x, lookup):
-    if isinstance(lookup, geopandas.GeoDataFrame):
-        try:
-            return lookup.index[lookup["geometry"].contains(x)].values[0]
-        except IndexError:
-            warnings.warn(f"Centroid {x} not found in broad annotation")
-            return numpy.nan
-    elif isinstance(lookup, numpy.ndarray):
-        # Floor centroid coordinates to avoid a scenario where
-        # a centroid is defined outside the image area. This
-        # happens when centroids are at the bottom/right edge
-        # of an image
-        centroid = numpy.floor(x.coords[0]).astype(int)
-        # Invert order to YX since we are using an array
-        # to define broad annotations
-        centroid = centroid[::-1]
-        return lookup[tuple(centroid)]
-    else:
-        raise ValueError(
-            "Expected lookup that was either a numpy array or a GeoDataFrame."
-        )
 
 
 def get_shapely_centroid(polygon):
