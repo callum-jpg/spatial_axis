@@ -2,8 +2,8 @@ import geopandas
 import numpy
 import shapely
 
-from SpatialAxis import spatial_axis
-from SpatialAxis.utility import (create_broad_annotation_polygons)
+from spatial_axis import spatial_axis
+from spatial_axis.utility import (create_broad_annotation_polygons)
 
 
 class TestSpatialAxis:
@@ -105,7 +105,7 @@ class TestSpatialAxis:
         broad_df = broad_df.set_index("broad_annotation_id")
 
         observed = spatial_axis(
-            instance_polygons=cells_df,
+            instance_objects=cells_df,
             broad_annotations=broad_df,
             broad_annotation_order=[1, 2, 3],
             k_neighbours=1,
