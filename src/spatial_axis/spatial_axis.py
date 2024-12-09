@@ -9,19 +9,50 @@ from rasterio.features import rasterize
 
 
 def spatial_axis(
-    instance_polygons: geopandas.GeoDataFrame,
-    broad_annotations: geopandas.GeoDataFrame,
+    instance_objects: typing.Union[geopandas.GeoDataFrame, numpy.ndarray],
+    broad_annotations: typing.Union[geopandas.GeoDataFrame, numpy.ndarray],
     broad_annotation_order: typing.List[int],
     broad_annotations_to_exclude: typing.Optional[typing.List[int]] = None,
     exclusion_value: typing.Optional[typing.Union[int, float]] = numpy.nan,
     k_neighbours=5,
     # broad_annotation_weights,
-):
+) -> numpy.ndarray:
+    """Find the relative positioning of uniquely labelled objects across
+    broad annotations with a specific order.
+
+    This enables the consideration of individual cells within the wider context
+    of anatomical tissue. For example, broad annotations may include the cortex
+    and medulla. It's useful to know that if a cell exists in the medulla region
+    of the tissue, is it closer or further away from the cortex than other
+    cells? ie. what is it's relative positioning?
+
+    Args:
+        instance_objects (typing.Union[geopandas.GeoDataFrame, numpy.ndarray]):
+        Individual objects that will have realtive positioning calculated.
+        Either a GeoPandas DataFrame with a Geometry column containing Shapely
+        polygons, or a NumPy array with instance labels. broad_annotations
+        (typing.Union[geopandas.GeoDataFrame, numpy.ndarray]): Contextual
+        annotations that will be used to determine the relative positioning of
+        instance objects. broad_annotation_order (typing.List[int]): Known
+        organisational order of the broad annotations. For example: cortex ->
+        medulla. Annotation order values must match the values in
+        broad_annotations. broad_annotations_to_exclude
+        (typing.Optional[typing.List[int]], optional): Broad annotations to
+        exclude. Defaults to None. exclusion_value
+        (typing.Optional[typing.Union[int, float]], optional): If a broad
+        annotation has been excluded, their relative positioning will be
+        replaced with this value. Defaults to numpy.nan. k_neighbours (int,
+        optional): Number of K neighbours used to calculate relative positioning
+        for each individual object. Higher values will give a "smoother"
+        relative positioning value. Defaults to 5.
+
+    Returns:
+        numpy.ndarray: 1D numpy array containing the relative positioning values
+        for each object
+    """
     # Get centroids for each polygon
     shape_centroids = (
-        instance_polygons["geometry"]
-        .apply(lambda x: get_shapely_centroid(x))
-        .to_numpy()
+        instance_objects["geometry"].apply(lambda x: get_shapely_centroid(x)).to_numpy()
     )
     shape_centroids = numpy.stack(shape_centroids)
 
@@ -107,31 +138,44 @@ def spatial_axis(
     return relative_distance
 
 
-def get_shapely_centroid(polygon):
-    """Get a shapely centroid"""
+def get_shapely_centroid(polygon: shapely.Polygon) -> numpy.ndarray:
+    """Get a Shapely polygon centroid coordinates.
+
+    Args:
+        polygon (shapely.Polygon): Shapely polygon.
+
+    Returns:
+        numpy.ndarray: Coordinates of a polygon centroid.
+    """
     return numpy.array(polygon.centroid.coords[0])
 
 
 def compute_relative_positioning(
-    distances,
-):
+    distances: numpy.ndarray,
+) -> numpy.ndarray:
     """
-    This function is intended to normalize the distances between N number of classes.
+    This function is intended to normalize the distances between N number of
+    classes.
 
-    eg. distances of cells to their nearest annotation neighbour.
-    For all of these distances, we can compute a relative positioning
-    "score" as follows:
+    eg. distances of cells to their nearest annotation neighbour. For all of
+    these distances, we can compute a relative positioning "score" as follows:
 
-    x1: distnace to annotation 1
-    x2: distance to annotation 2
+    x1: distnace to annotation 1 x2: distance to annotation 2
 
     (x1 - x2) / (x1 + x2)
 
-    Annotation 1...N is defined in a heirarchical scanning window,
-    so only those spatially adjacent annotation classes are considered.
+    Annotation 1...N is defined in a heirarchical scanning window, so only those
+    spatially adjacent annotation classes are considered.
 
-    eg. classes [1, 2, 3, 4] would be considered in scanning window pairs
-    [1, 2], [2, 3], [3, 4].
+    eg. classes [1, 2, 3, 4] would be considered in scanning window pairs [1,
+    2], [2, 3], [3, 4].
+
+    Args:
+        distances (numpy.ndarray): Distances computed with cKDTree for each cell
+        across all broad annotations
+
+    Returns:
+        numpy.ndarray: Normalised distances across broad annotation classes.
     """
 
     inter_class_distances = []
@@ -154,7 +198,24 @@ def spatial_axis_to_labelmap(
     geometry_column: str = "geometry",
     spatial_axis_column: str = "spatial_axis",
     background_value: int = 0,
-):
+) -> numpy.ndarray:
+    """
+    Convert a GeoPandas DataFrame containing a spatial axis column of relative
+    object positionings into a label map for plotting.
+
+    Args:
+        shape_gdf (geopandas.GeoDataFrame): GeoDataFrame containing a geometry
+        and spatial_axis column image_shape (typing.Tuple[int, int]): Shape of
+        image to rasterize polygons onto. geometry_column (str, optional): Name
+        of column containing Shapely polygons. Defaults to "geometry".
+        spatial_axis_column (str, optional): Name of column containing relative
+        positioning spatial axis values. Defaults to "spatial_axis".
+        background_value (int, optional): Background value. Defaults to 0.
+
+    Returns:
+        numpy.ndarray: Rasterized labelmap with objects colored based upon their
+        relative positioning.
+    """
 
     spatial_axis_polygons = shape_gdf.apply(
         lambda row: (row[geometry_column], row[spatial_axis_column]), axis=1
@@ -169,10 +230,20 @@ def spatial_axis_to_labelmap(
     return rasterized_polygons
 
 
-def get_label_centroids(instance_shapes):
-    """Get the centorids, cell labels, and their associated broad
-    annotation ID."""
+def get_label_centroids(
+    instance_shapes: numpy.ndarray,
+) -> typing.Union[numpy.ndarray, list]:
+    """
+    Get the centorids, cell labels, and their associated broad annotation ID.
 
+    Args:
+        instance_shapes (numpy.ndarray): Array containing instance labels.
+
+    Returns:
+        typing.Union[numpy.ndarray, list]: Returns a NumPy array of centroid
+        coordinates and a list of label values.
+    """
+    # Get centroid and label values.
     props = skimage.measure.regionprops_table(
         instance_shapes, properties=["centroid", "label"]
     )
