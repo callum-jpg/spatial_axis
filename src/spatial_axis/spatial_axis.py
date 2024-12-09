@@ -60,15 +60,16 @@ def spatial_axis(
         # Convert centroids to shapely points.
         # This enables determining where points are found in
         # the broad_annotation GeoDataFrame
+        centroid_broad_annotation_class = []
+        # TODO: vectorize this
         shape_centroid_points = [shapely.Point(x, y) for x, y in shape_centroids]
-        centroid_broad_annotation_class = broad_annotations.index[
-            broad_annotations["geometry"].apply(
-                lambda geom: any(
-                    geom.contains(point) for point in shape_centroid_points
-                )
+        for shp_ctrd in shape_centroid_points:
+            centroid_broad_annotation_class.append(
+                broad_annotations.index[
+                    broad_annotations["geometry"].contains(shp_ctrd)
+                ].values[0]
             )
-        ]
-        centroid_broad_annotation_class = centroid_broad_annotation_class.values
+        centroid_broad_annotation_class = numpy.array(centroid_broad_annotation_class)
     elif isinstance(broad_annotations, numpy.ndarray):
         floored_shape_centroids = numpy.floor(shape_centroids).astype(int)
         x, y = floored_shape_centroids[:, 0], floored_shape_centroids[:, 1]
