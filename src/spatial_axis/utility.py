@@ -2,6 +2,7 @@ import typing
 
 import numpy
 import shapely
+import skimage
 
 
 def random_shapely_circles(
@@ -81,3 +82,37 @@ def create_broad_annotation_polygons(
         shapes.append(scaled_shape)
 
     return shapes
+
+def label_and_split(
+    image: numpy.ndarray, background_value: int = 0
+    ) -> typing.Union[numpy.ndarray, typing.Dict[int, numpy.ndarray]]:
+    """
+    Label and return the full labelled array, in addition 
+    to individual arrays where only one instance ID is visible.
+
+    All returned images will be RGB, with colours aligned with thos
+    used in the full image.
+    """
+
+    assert image.ndim == 2, f"Expected a grayscale label array with ndim == 2, got {image.ndim}"
+
+    # Get unique labels. Exclude background
+    unique_labels = numpy.unique(image)
+    unique_labels = unique_labels[unique_labels != background_value]
+
+    # RGB the labels
+    labels = skimage.color.label2rgb(image)
+
+    # Create an RGB version of the input, which will allow for 
+    # numpy.where matching
+    rgb_input_image = skimage.color.gray2rgb(image)
+
+    output = {}
+    for unq in unique_labels:
+        single_rgb_label = numpy.where(
+            rgb_input_image == unq, labels, 0
+        )
+
+        output[unq] = single_rgb_label
+
+    return labels, output
