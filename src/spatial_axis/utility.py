@@ -86,12 +86,20 @@ def create_broad_annotation_polygons(
 def label_and_split(
     image: numpy.ndarray, background_value: int = 0
     ) -> typing.Union[numpy.ndarray, typing.Dict[int, numpy.ndarray]]:
-    """
-    Label and return the full labelled array, in addition 
+    """Label and return the full labelled array, in addition 
     to individual arrays where only one instance ID is visible.
 
     All returned images will be RGB, with colours aligned with thos
     used in the full image.
+
+    Args:
+        image (numpy.ndarray): Input 2D label map.
+        background_value (int, optional): Value that will be excluded. Defaults to 0.
+
+    Returns:
+        typing.Union[numpy.ndarray, typing.Dict[int, numpy.ndarray]]: Returns an RGB
+        image of all labels and a dictionary of single label arrays as values and the 
+        corresponding label value as keys.
     """
 
     assert image.ndim == 2, f"Expected a grayscale label array with ndim == 2, got {image.ndim}"
