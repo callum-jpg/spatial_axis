@@ -46,7 +46,7 @@ def create_broad_annotation_polygons(
     image_shape: typing.Tuple[int, int],
     annotation_shape: typing.Literal["box", "circle"] = "box",
     num_levels: int = 3,
-    downscale_factor: float = 0.6,
+    downscale_factor: typing.Union[typing.List[float], float] = 0.6,
 ) -> typing.Tuple[shapely.geometry.Polygon]:
     """Create 3 shapely box polygons, each containing the next smallest object.
 
@@ -58,6 +58,11 @@ def create_broad_annotation_polygons(
     """
 
     assert num_levels > 2, f"num_levels must be > 2, got {num_levels}"
+
+    if isinstance(downscale_factor, float):
+        downscale_factor = [downscale_factor] * num_levels
+    elif isinstance(downscale_factor, list):
+        assert len(downscale_factor) == num_levels, f"Provide a downscale factor for each annotation. Expected {num_levels} got {len(downscale_factor)}"
 
     minx, miny, maxx, maxy = 0, 0, image_shape[1], image_shape[0]
 
@@ -71,7 +76,7 @@ def create_broad_annotation_polygons(
     for level in range(num_levels - 1):
         # Scale the previous polygon by the scale_factor
         scaled_shape = shapely.affinity.scale(
-            shapes[level], downscale_factor, downscale_factor
+            shapes[level], downscale_factor[level], downscale_factor[level]
         )
         # Find the difference of the original shape and the scaled shape
         prev_shape = shapely.difference(shapes[level], scaled_shape)
