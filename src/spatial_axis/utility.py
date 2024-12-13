@@ -80,6 +80,13 @@ def create_broad_annotation_polygons(
         # Add the scaled shape (no difference) to the i+1th position
         shapes.append(scaled_shape)
 
+    # Create an extra polygon for the background. This ensures the entire array
+    # of shape image_shape has a annotation value associated with it
+    background = shapely.geometry.box(0, 0, image_shape[0], image_shape[1])
+    background = background.difference(outer)
+
+    shapes = [background] + shapes
+
     return shapes
 
 def label_and_split(
