@@ -64,8 +64,7 @@ def create_broad_annotation_polygons(
     if annotation_shape.casefold() == "box":
         outer = shapely.geometry.box(minx, miny, maxx, maxy)
     elif annotation_shape.casefold() == "circle":
-        print(max(maxx, maxy))
-        outer = shapely.geometry.Point(maxx / 2, maxy / 2).buffer(max(maxx, maxy))
+        outer = shapely.geometry.Point(maxx / 2, maxy / 2).buffer(max(maxx // 2, maxy // 2))
 
     shapes = [outer]
 
