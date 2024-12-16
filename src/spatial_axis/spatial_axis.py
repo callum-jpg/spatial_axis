@@ -157,7 +157,6 @@ def get_shapely_centroid(polygon: shapely.Polygon) -> numpy.ndarray:
     return numpy.array(polygon.centroid.coords[0])
 
 
-
 def compute_relative_positioning(
     distances: numpy.ndarray,
 ) -> numpy.ndarray:
@@ -190,7 +189,10 @@ def compute_relative_positioning(
     # Iterate over .shape[1] (the columns), which corresponds to the number of
     # broad annotation classes
     for col_idx in numpy.arange(distances.shape[1] - 1):
-        if numpy.isnan(distances[:, col_idx]).any() or numpy.isnan(distances[:, col_idx + 1]).any():
+        if (
+            numpy.isnan(distances[:, col_idx]).any()
+            or numpy.isnan(distances[:, col_idx + 1]).any()
+        ):
             a = numpy.empty(distances[:, col_idx].shape)
             a[:] = numpy.nan
         else:

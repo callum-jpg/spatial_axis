@@ -62,14 +62,18 @@ def create_broad_annotation_polygons(
     if isinstance(downscale_factor, float):
         downscale_factor = [downscale_factor] * num_levels
     elif isinstance(downscale_factor, list):
-        assert len(downscale_factor) == num_levels, f"Provide a downscale factor for each annotation. Expected {num_levels} got {len(downscale_factor)}"
+        assert (
+            len(downscale_factor) == num_levels
+        ), f"Provide a downscale factor for each annotation. Expected {num_levels} got {len(downscale_factor)}"
 
     minx, miny, maxx, maxy = 0, 0, image_shape[1], image_shape[0]
 
     if annotation_shape.casefold() == "box":
         outer = shapely.geometry.box(minx, miny, maxx, maxy)
     elif annotation_shape.casefold() == "circle":
-        outer = shapely.geometry.Point(maxx / 2, maxy / 2).buffer(max(maxx // 2, maxy // 2))
+        outer = shapely.geometry.Point(maxx / 2, maxy / 2).buffer(
+            max(maxx // 2, maxy // 2)
+        )
 
     shapes = [outer]
 
@@ -94,10 +98,11 @@ def create_broad_annotation_polygons(
 
     return shapes
 
+
 def label_and_split(
     image: numpy.ndarray, background_value: int = 0
-    ) -> typing.Union[numpy.ndarray, typing.Dict[int, numpy.ndarray]]:
-    """Label and return the full labelled array, in addition 
+) -> typing.Union[numpy.ndarray, typing.Dict[int, numpy.ndarray]]:
+    """Label and return the full labelled array, in addition
     to individual arrays where only one instance ID is visible.
 
     All returned images will be RGB, with colours aligned with thos
@@ -109,11 +114,13 @@ def label_and_split(
 
     Returns:
         typing.Union[numpy.ndarray, typing.Dict[int, numpy.ndarray]]: Returns an RGB
-        image of all labels and a dictionary of single label arrays as values and the 
+        image of all labels and a dictionary of single label arrays as values and the
         corresponding label value as keys.
     """
 
-    assert image.ndim == 2, f"Expected a grayscale label array with ndim == 2, got {image.ndim}"
+    assert (
+        image.ndim == 2
+    ), f"Expected a grayscale label array with ndim == 2, got {image.ndim}"
 
     # Get unique labels. Exclude background
     unique_labels = numpy.unique(image)
@@ -122,15 +129,13 @@ def label_and_split(
     # RGB the labels
     labels = skimage.color.label2rgb(image)
 
-    # Create an RGB version of the input, which will allow for 
+    # Create an RGB version of the input, which will allow for
     # numpy.where matching
     rgb_input_image = skimage.color.gray2rgb(image)
 
     output = {}
     for unq in unique_labels:
-        single_rgb_label = numpy.where(
-            rgb_input_image == unq, labels, 0
-        )
+        single_rgb_label = numpy.where(rgb_input_image == unq, labels, 0)
 
         output[unq] = single_rgb_label
 
