@@ -113,10 +113,16 @@ def spatial_axis(
                 # calculate the mean for all neighbours. Presumably, this will identify cells that
                 # are distinctly within an annotation class, and then those that are "between" classes
                 distances = numpy.mean(distances, axis=1)
-
             all_dist.append(distances)
+            print(11, distances.max())
+        else:
+            distances = numpy.empty(len(shape_centroids))
+            distances[:] = numpy.nan
+            all_dist.append(distances)
+            print(22, distances.max())
 
     all_dist = numpy.array(all_dist).T
+    print(all_dist.shape)
 
     relative_distance = compute_relative_positioning(all_dist)
 
@@ -151,6 +157,7 @@ def get_shapely_centroid(polygon: shapely.Polygon) -> numpy.ndarray:
     return numpy.array(polygon.centroid.coords[0])
 
 
+
 def compute_relative_positioning(
     distances: numpy.ndarray,
 ) -> numpy.ndarray:
@@ -183,12 +190,16 @@ def compute_relative_positioning(
     # Iterate over .shape[1] (the columns), which corresponds to the number of
     # broad annotation classes
     for col_idx in numpy.arange(distances.shape[1] - 1):
-        a = (distances[:, col_idx] - distances[:, col_idx + 1]) / (
-            distances[:, col_idx] + distances[:, col_idx + 1]
-        )
+        if numpy.isnan(distances[:, col_idx]).any() or numpy.isnan(distances[:, col_idx + 1]).any():
+            a = numpy.empty(distances[:, col_idx].shape)
+            a[:] = numpy.nan
+        else:
+            a = (distances[:, col_idx] - distances[:, col_idx + 1]) / (
+                distances[:, col_idx] + distances[:, col_idx + 1]
+            )
         inter_class_distances.append(a)
 
-    inter_class_distances = numpy.array(sum(inter_class_distances))
+    inter_class_distances = numpy.array(numpy.nansum(inter_class_distances, axis=0))
 
     return inter_class_distances
 
