@@ -52,6 +52,12 @@ def spatial_axis(
     """
     all_dist = []
 
+    if not isinstance(instance_objects, list):
+        instance_objects = [instance_objects]
+
+    if not isinstance(broad_annotations, list):
+        broad_annotations = [broad_annotations]
+
     for io, ba in zip(instance_objects, broad_annotations):
         # Get centroids for each polygon
         shape_centroids = (
