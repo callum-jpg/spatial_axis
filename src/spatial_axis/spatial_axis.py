@@ -50,76 +50,85 @@ def spatial_axis(
         numpy.ndarray: 1D numpy array containing the relative positioning values
         for each object
     """
-    # Get centroids for each polygon
-    shape_centroids = (
-        instance_objects["geometry"].apply(lambda x: get_shapely_centroid(x)).to_numpy()
-    )
-    shape_centroids = numpy.stack(shape_centroids)
-
-    if isinstance(broad_annotations, geopandas.GeoDataFrame):
-        # Convert centroids to shapely points.
-        # This enables determining where points are found in
-        # the broad_annotation GeoDataFrame
-        centroid_broad_annotation_class = []
-        # TODO: vectorize this
-        shape_centroid_points = [shapely.Point(x, y) for x, y in shape_centroids]
-        for shp_ctrd in shape_centroid_points:
-            centroid_broad_annotation_class.append(
-                broad_annotations.index[
-                    broad_annotations["geometry"].contains(shp_ctrd)
-                ].values[0]
-            )
-        centroid_broad_annotation_class = numpy.array(centroid_broad_annotation_class)
-    elif isinstance(broad_annotations, numpy.ndarray):
-        floored_shape_centroids = numpy.floor(shape_centroids).astype(int)
-        x, y = floored_shape_centroids[:, 0], floored_shape_centroids[:, 1]
-        centroid_broad_annotation_class = broad_annotations[x, y]
-    else:
-        ValueError(
-            f"Do not support broad_annotations of type {type(broad_annotations)}"
-        )
-
-    # List to contain sample distance information
     all_dist = []
 
-    # Iterate over each broad annotation class and create a
-    # cKDTree for each group of centroids that are within
-    # that class
-    for broad_annotation_class in broad_annotation_order:
-        class_centroids = shape_centroids[
-            numpy.where(centroid_broad_annotation_class == broad_annotation_class)
-        ]
+    for io, ba in zip(instance_objects, broad_annotations):
+        # Get centroids for each polygon
+        shape_centroids = (
+            io["geometry"].apply(lambda x: get_shapely_centroid(x)).to_numpy()
+        )
+        shape_centroids = numpy.stack(shape_centroids)
 
-        # Ensure the class has centroids
-        if class_centroids.shape[0] != 0:
-            # If there are less then k_neighbours in a class group, set k_neighbours to this value. Otherwise,
-            # tree.query will return inf, since, for example, a group of 3 points cannot have 5 neighbours.
-            tree_k_neighbours = (
-                k_neighbours
-                if class_centroids.shape[0] > k_neighbours
-                else class_centroids.shape[0]
+        if isinstance(ba, geopandas.GeoDataFrame):
+            # Convert centroids to shapely points.
+            # This enables determining where points are found in
+            # the broad_annotation GeoDataFrame
+            centroid_broad_annotation_class = []
+            # TODO: vectorize this
+            shape_centroid_points = [shapely.Point(x, y) for x, y in shape_centroids]
+            for shp_ctrd in shape_centroid_points:
+                centroid_broad_annotation_class.append(
+                    ba.index[
+                        ba["geometry"].contains(shp_ctrd)
+                    ].values[0]
+                )
+            centroid_broad_annotation_class = numpy.array(centroid_broad_annotation_class)
+        elif isinstance(ba, numpy.ndarray):
+            floored_shape_centroids = numpy.floor(shape_centroids).astype(int)
+            x, y = floored_shape_centroids[:, 0], floored_shape_centroids[:, 1]
+            centroid_broad_annotation_class = ba[x, y]
+        else:
+            ValueError(
+                f"Do not support broad_annotations of type {type(ba)}"
             )
 
-            # Create a tree
-            tree = scipy.spatial.cKDTree(class_centroids)
+        # List to contain sample distance information
+        loop_dist = []
 
-            # Based on all centroids, query their nearest neighbours. 0 if closest
-            # to themselves, otherwise the euclidean distance to the class of interest
-            distances, _ = tree.query(shape_centroids, k=tree_k_neighbours)
+        # Iterate over each broad annotation class and create a
+        # cKDTree for each group of centroids that are within
+        # that class
+        for broad_annotation_class in broad_annotation_order:
+            class_centroids = shape_centroids[
+                numpy.where(centroid_broad_annotation_class == broad_annotation_class)
+            ]
 
-            if not tree_k_neighbours == 1:
-                # Now we have the distances to nearest neighbours depending on the value of k
-                # (first distance will be 0 if the class an item was in is queried). Now, we can
-                # calculate the mean for all neighbours. Presumably, this will identify cells that
-                # are distinctly within an annotation class, and then those that are "between" classes
-                distances = numpy.mean(distances, axis=1)
-            all_dist.append(distances)
-        else:
-            distances = numpy.empty(len(shape_centroids))
-            distances[:] = numpy.nan
-            all_dist.append(distances)
+            # Ensure the class has centroids
+            if class_centroids.shape[0] != 0:
+                # If there are less then k_neighbours in a class group, set k_neighbours to this value. Otherwise,
+                # tree.query will return inf, since, for example, a group of 3 points cannot have 5 neighbours.
+                tree_k_neighbours = (
+                    k_neighbours
+                    if class_centroids.shape[0] > k_neighbours
+                    else class_centroids.shape[0]
+                )
 
-    all_dist = numpy.array(all_dist).T
+                # Create a tree
+                tree = scipy.spatial.cKDTree(class_centroids)
+
+                # Based on all centroids, query their nearest neighbours. 0 if closest
+                # to themselves, otherwise the euclidean distance to the class of interest
+                distances, _ = tree.query(shape_centroids, k=tree_k_neighbours)
+
+                if not tree_k_neighbours == 1:
+                    # Now we have the distances to nearest neighbours depending on the value of k
+                    # (first distance will be 0 if the class an item was in is queried). Now, we can
+                    # calculate the mean for all neighbours. Presumably, this will identify cells that
+                    # are distinctly within an annotation class, and then those that are "between" classes
+                    distances = numpy.mean(distances, axis=1)
+                loop_dist.append(distances)
+            else:
+                distances = numpy.empty(len(shape_centroids))
+                distances[:] = numpy.nan
+                loop_dist.append(distances)
+        loop_dist = numpy.array(loop_dist).T
+        print(loop_dist.shape)
+        all_dist.append(loop_dist)
+
+    print(len(all_dist))
+
+    all_dist = numpy.vstack(all_dist)
+    print(all_dist.shape)
 
     relative_distance = compute_relative_positioning(all_dist)
 
@@ -185,25 +194,56 @@ def compute_relative_positioning(
         numpy.ndarray: Normalised distances across broad annotation classes.
     """
 
+    print("distances.shape", distances.shape)
+
     inter_class_distances = []
     # Iterate over .shape[1] (the columns), which corresponds to the number of
     # broad annotation classes
     for col_idx in numpy.arange(distances.shape[1] - 1):
-        if (
-            numpy.isnan(distances[:, col_idx]).any()
-            or numpy.isnan(distances[:, col_idx + 1]).any()
-        ):
-            a = numpy.empty(distances[:, col_idx].shape)
-            a[:] = numpy.nan
-        else:
-            a = (distances[:, col_idx] - distances[:, col_idx + 1]) / (
-                distances[:, col_idx] + distances[:, col_idx + 1]
-            )
+        a = normalised_difference(
+            distances[:, col_idx],
+            distances[:, col_idx + 1]
+        )
         inter_class_distances.append(a)
 
-    inter_class_distances = numpy.array(numpy.nansum(inter_class_distances, axis=0))
+    inter_class_distances = numpy.array(inter_class_distances)
+    print("inter_class_distances", inter_class_distances.shape)
+
+    inter_class_distances = numpy.nansum(inter_class_distances, axis=0)
 
     return inter_class_distances
+
+def normalize_min_max(data, epsilon=1e-10):
+    """Min-max normalization to scale data to [-1, 1], handling NaNs."""
+    data_min = numpy.nanmin(data)
+    data_max = numpy.nanmax(data)
+    range_ = max(data_max - data_min, epsilon)  # Prevent division by zero
+    return 2 * ((data - data_min) / range_ - 0.5)  # Rescale to [-1, 1]
+
+def normalised_difference(
+    array1, array2
+):
+
+    array1 = normalize_min_max(array1)
+    array2 = normalize_min_max(array2)
+
+    # Ignore NaN values during summation
+    sum_array1 = numpy.nansum(array1)
+    sum_array2 = numpy.nansum(array2)
+    
+    # Compute the denominator (global scale normalization)
+    denominator = abs(sum_array1 + sum_array2)
+    
+    # Calculate the normalized difference for each element
+    result = (array1 - array2) / denominator
+    
+    # Handle NaN values in the input arrays
+    result = numpy.where(numpy.isnan(array1) | numpy.isnan(array2), numpy.nan, result)
+
+    # result = 2 * (result - numpy.nanmin(result)) / (numpy.nanmax(result) - numpy.nanmin(result)) - 1
+    result = numpy.multiply(result, 100)
+    
+    return result
 
 
 def spatial_axis_to_labelmap(
