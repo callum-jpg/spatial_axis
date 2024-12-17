@@ -234,13 +234,28 @@ def normalise_min_max(data, epsilon=1e-10):
     return 2 * ((data - data_min) / range_ - 0.5)
 
 
+def normalise_mean(D):
+    mean = numpy.mean(D)
+    return D / mean
+
+
+def normalise_max_distance(D, magnitude=1):
+    d_max = numpy.sqrt(2) * magnitude  # Max possible distance for normalized vectors
+    return D / d_max
+
+
 def normalised_difference(
-    array1, array2, norm_method: typing.Literal["minmax"] = "minmax"
+    array1, array2, norm_method: typing.Literal["minmax", "mean", "max"] = "max"
 ):
     if norm_method.casefold() == "minmax":
         array1 = normalise_min_max(array1)
         array2 = normalise_min_max(array2)
-
+    elif norm_method.casefold() == "mean":
+        array1 = normalise_mean(array1)
+        array2 = normalise_mean(array2)
+    elif norm_method.casefold() == "max":
+        array1 = normalise_max_distance(array1)
+        array2 = normalise_max_distance(array2)
     # Ignore NaN values during summation
     sum_array1 = numpy.nansum(array1)
     sum_array2 = numpy.nansum(array2)
