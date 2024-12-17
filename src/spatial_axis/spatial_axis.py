@@ -215,13 +215,28 @@ def compute_relative_positioning(
     inter_class_distances = []
     # Iterate over .shape[1] (the columns), which corresponds to the number of
     # broad annotation classes
+    # for col_idx in numpy.arange(distances.shape[1] - 1):
+    #     a = normalised_difference(distances[:, col_idx], distances[:, col_idx + 1])
+    #     inter_class_distances.append(a)
+
+    # inter_class_distances = numpy.array(inter_class_distances)
+
+    # inter_class_distances = numpy.nansum(inter_class_distances, axis=0)
+
     for col_idx in numpy.arange(distances.shape[1] - 1):
-        a = normalised_difference(distances[:, col_idx], distances[:, col_idx + 1])
+        if (
+            numpy.isnan(distances[:, col_idx]).any()
+            or numpy.isnan(distances[:, col_idx + 1]).any()
+        ):
+            a = numpy.empty(distances[:, col_idx].shape)
+            a[:] = numpy.nan
+        else:
+            a = (distances[:, col_idx] - distances[:, col_idx + 1]) / (
+                distances[:, col_idx] + distances[:, col_idx + 1]
+            )
         inter_class_distances.append(a)
 
-    inter_class_distances = numpy.array(inter_class_distances)
-
-    inter_class_distances = numpy.nansum(inter_class_distances, axis=0)
+    inter_class_distances = numpy.array(numpy.nansum(inter_class_distances, axis=0))
 
     return inter_class_distances
 
@@ -245,7 +260,7 @@ def normalise_max_distance(D, magnitude=1):
 
 
 def normalised_difference(
-    array1, array2, norm_method: typing.Literal["minmax", "mean", "max"] = "max"
+    array1, array2, norm_method: typing.Literal["minmax", "mean", "max", "none"] = "minmax"
 ):
     if norm_method.casefold() == "minmax":
         array1 = normalise_min_max(array1)
@@ -256,21 +271,19 @@ def normalised_difference(
     elif norm_method.casefold() == "max":
         array1 = normalise_max_distance(array1)
         array2 = normalise_max_distance(array2)
+
     # Ignore NaN values during summation
     sum_array1 = numpy.nansum(array1)
     sum_array2 = numpy.nansum(array2)
 
     # Compute the denominator (global scale normalization)
-    denominator = abs(sum_array1 + sum_array2)
+    # denominator = abs(sum_array1 + sum_array2)
+    denominator = array1 + array2
 
     # Calculate the normalized difference for each element
     result = (array1 - array2) / denominator
 
-    # Handle NaN values in the input arrays
-    result = numpy.where(numpy.isnan(array1) | numpy.isnan(array2), numpy.nan, result)
-
     # result = 2 * (result - numpy.nanmin(result)) / (numpy.nanmax(result) - numpy.nanmin(result)) - 1
-    result = numpy.multiply(result, 100)
 
     return result
 
