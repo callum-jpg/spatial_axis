@@ -12,7 +12,7 @@ def spatial_axis(
     instance_objects: typing.Union[geopandas.GeoDataFrame, numpy.ndarray],
     broad_annotations: typing.Union[geopandas.GeoDataFrame, numpy.ndarray],
     broad_annotation_order: typing.List[int],
-    broad_annotations_to_exclude: typing.Optional[typing.List[int]] = None,
+    broad_annotations_to_exclude: typing.Optional[typing.Union[int, typing.List[int]]] = None,
     exclusion_value: typing.Optional[typing.Union[int, float]] = numpy.nan,
     k_neighbours=5,
     # broad_annotation_weights,
@@ -114,19 +114,19 @@ def spatial_axis(
                 # are distinctly within an annotation class, and then those that are "between" classes
                 distances = numpy.mean(distances, axis=1)
             all_dist.append(distances)
-            print(11, distances.max())
         else:
             distances = numpy.empty(len(shape_centroids))
             distances[:] = numpy.nan
             all_dist.append(distances)
-            print(22, distances.max())
 
     all_dist = numpy.array(all_dist).T
-    print(all_dist.shape)
 
     relative_distance = compute_relative_positioning(all_dist)
 
-    if broad_annotations_to_exclude:
+    if broad_annotations_to_exclude is not None:
+        if isinstance(broad_annotations_to_exclude, int):
+            broad_annotations_to_exclude = [broad_annotations_to_exclude]
+
         # We will use distances that are of a broad annotation
         # to exclude
         floored_shape_centroids = numpy.floor(shape_centroids).astype(int)
