@@ -122,31 +122,40 @@ def spatial_axis(
                 distances[:] = numpy.nan
                 loop_dist.append(distances)
         loop_dist = numpy.array(loop_dist).T
-        print(loop_dist.shape)
         all_dist.append(loop_dist)
 
-    print(len(all_dist))
 
     all_dist = numpy.vstack(all_dist)
-    print(all_dist.shape)
 
     relative_distance = compute_relative_positioning(all_dist)
 
     if broad_annotations_to_exclude is not None:
         if isinstance(broad_annotations_to_exclude, int):
             broad_annotations_to_exclude = [broad_annotations_to_exclude]
+        
+        inclusion_mask = []
 
-        # We will use distances that are of a broad annotation
-        # to exclude
-        floored_shape_centroids = numpy.floor(shape_centroids).astype(int)
-        # Create a mask for regions of the image that contain
-        # values to exclude
-        exclusion_mask = numpy.isin(broad_annotations, broad_annotations_to_exclude)
+        for io, ba in zip(instance_objects, broad_annotations):
+            shape_centroids = [centroid for centroid in io["geometry"].apply(lambda x: get_shapely_centroid(x)).to_numpy()]
+            shape_centroids = numpy.array(shape_centroids)
 
-        # Get XY coordinates for the centroids
-        x, y = floored_shape_centroids[:, 0], floored_shape_centroids[:, 1]
-        # Determine which centroids to include
-        inclusion_mask = ~exclusion_mask[x, y]
+            # We will use distances that are of a broad annotation
+            # to exclude
+            floored_shape_centroids = numpy.floor(shape_centroids).astype(int)
+            # Create a mask for regions of the image that contain
+            # values to exclude
+            exclusion_mask = numpy.isin(ba, broad_annotations_to_exclude)
+
+            # Get XY coordinates for the centroids
+            x, y = floored_shape_centroids[:, 0], floored_shape_centroids[:, 1]
+            # Determine which centroids to include
+            inclusion_array = ~exclusion_mask[x, y]
+
+            inclusion_mask.append(inclusion_array)
+
+        inclusion_mask = numpy.hstack(inclusion_mask)
+        print(inclusion_mask.shape)
+
         # Mask the original (non-floored) centroids
         # shape_centroids = shape_centroids[inclusion_mask]
         relative_distance[~inclusion_mask] = exclusion_value
