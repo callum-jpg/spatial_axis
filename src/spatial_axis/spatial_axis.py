@@ -12,7 +12,9 @@ def spatial_axis(
     instance_objects: typing.Union[geopandas.GeoDataFrame, numpy.ndarray],
     broad_annotations: typing.Union[geopandas.GeoDataFrame, numpy.ndarray],
     broad_annotation_order: typing.List[int],
-    broad_annotations_to_exclude: typing.Optional[typing.Union[int, typing.List[int]]] = None,
+    broad_annotations_to_exclude: typing.Optional[
+        typing.Union[int, typing.List[int]]
+    ] = None,
     exclusion_value: typing.Optional[typing.Union[int, float]] = numpy.nan,
     k_neighbours=5,
     # broad_annotation_weights,
@@ -74,19 +76,17 @@ def spatial_axis(
             shape_centroid_points = [shapely.Point(x, y) for x, y in shape_centroids]
             for shp_ctrd in shape_centroid_points:
                 centroid_broad_annotation_class.append(
-                    ba.index[
-                        ba["geometry"].contains(shp_ctrd)
-                    ].values[0]
+                    ba.index[ba["geometry"].contains(shp_ctrd)].values[0]
                 )
-            centroid_broad_annotation_class = numpy.array(centroid_broad_annotation_class)
+            centroid_broad_annotation_class = numpy.array(
+                centroid_broad_annotation_class
+            )
         elif isinstance(ba, numpy.ndarray):
             floored_shape_centroids = numpy.floor(shape_centroids).astype(int)
             x, y = floored_shape_centroids[:, 0], floored_shape_centroids[:, 1]
             centroid_broad_annotation_class = ba[x, y]
         else:
-            ValueError(
-                f"Do not support broad_annotations of type {type(ba)}"
-            )
+            ValueError(f"Do not support broad_annotations of type {type(ba)}")
 
         # List to contain sample distance information
         loop_dist = []
@@ -130,7 +130,6 @@ def spatial_axis(
         loop_dist = numpy.array(loop_dist).T
         all_dist.append(loop_dist)
 
-
     all_dist = numpy.vstack(all_dist)
 
     relative_distance = compute_relative_positioning(all_dist)
@@ -138,11 +137,16 @@ def spatial_axis(
     if broad_annotations_to_exclude is not None:
         if isinstance(broad_annotations_to_exclude, int):
             broad_annotations_to_exclude = [broad_annotations_to_exclude]
-        
+
         inclusion_mask = []
 
         for io, ba in zip(instance_objects, broad_annotations):
-            shape_centroids = [centroid for centroid in io["geometry"].apply(lambda x: get_shapely_centroid(x)).to_numpy()]
+            shape_centroids = [
+                centroid
+                for centroid in io["geometry"]
+                .apply(lambda x: get_shapely_centroid(x))
+                .to_numpy()
+            ]
             shape_centroids = numpy.array(shape_centroids)
 
             # We will use distances that are of a broad annotation
@@ -160,7 +164,6 @@ def spatial_axis(
             inclusion_mask.append(inclusion_array)
 
         inclusion_mask = numpy.hstack(inclusion_mask)
-        print(inclusion_mask.shape)
 
         # Mask the original (non-floored) centroids
         # shape_centroids = shape_centroids[inclusion_mask]
@@ -209,55 +212,51 @@ def compute_relative_positioning(
         numpy.ndarray: Normalised distances across broad annotation classes.
     """
 
-    print("distances.shape", distances.shape)
-
     inter_class_distances = []
     # Iterate over .shape[1] (the columns), which corresponds to the number of
     # broad annotation classes
     for col_idx in numpy.arange(distances.shape[1] - 1):
-        a = normalised_difference(
-            distances[:, col_idx],
-            distances[:, col_idx + 1]
-        )
+        a = normalised_difference(distances[:, col_idx], distances[:, col_idx + 1])
         inter_class_distances.append(a)
 
     inter_class_distances = numpy.array(inter_class_distances)
-    print("inter_class_distances", inter_class_distances.shape)
 
     inter_class_distances = numpy.nansum(inter_class_distances, axis=0)
 
     return inter_class_distances
 
-def normalize_min_max(data, epsilon=1e-10):
-    """Min-max normalization to scale data to [-1, 1], handling NaNs."""
+
+def normalise_min_max(data, epsilon=1e-10):
+    """Min-max normalisation to scale data to [-1, 1]."""
     data_min = numpy.nanmin(data)
     data_max = numpy.nanmax(data)
-    range_ = max(data_max - data_min, epsilon)  # Prevent division by zero
-    return 2 * ((data - data_min) / range_ - 0.5)  # Rescale to [-1, 1]
+    range_ = max(data_max - data_min, epsilon)
+    return 2 * ((data - data_min) / range_ - 0.5)
+
 
 def normalised_difference(
-    array1, array2
+    array1, array2, norm_method: typing.Literal["minmax"] = "minmax"
 ):
-
-    array1 = normalize_min_max(array1)
-    array2 = normalize_min_max(array2)
+    if norm_method.casefold() == "minmax":
+        array1 = normalise_min_max(array1)
+        array2 = normalise_min_max(array2)
 
     # Ignore NaN values during summation
     sum_array1 = numpy.nansum(array1)
     sum_array2 = numpy.nansum(array2)
-    
+
     # Compute the denominator (global scale normalization)
     denominator = abs(sum_array1 + sum_array2)
-    
+
     # Calculate the normalized difference for each element
     result = (array1 - array2) / denominator
-    
+
     # Handle NaN values in the input arrays
     result = numpy.where(numpy.isnan(array1) | numpy.isnan(array2), numpy.nan, result)
 
     # result = 2 * (result - numpy.nanmin(result)) / (numpy.nanmax(result) - numpy.nanmin(result)) - 1
     result = numpy.multiply(result, 100)
-    
+
     return result
 
 
