@@ -12,6 +12,8 @@ def spatial_axis(
     instance_objects: typing.Union[geopandas.GeoDataFrame, numpy.ndarray],
     broad_annotations: typing.Union[geopandas.GeoDataFrame, numpy.ndarray],
     broad_annotation_order: typing.List[int],
+    missing_annotation_method: typing.Literal["none", "replace", "knn"] = "none",
+    replace_value: int = 1,
     broad_annotations_to_exclude: typing.Optional[typing.Union[int, typing.List[int]]] = None,
     exclusion_value: typing.Optional[typing.Union[int, float]] = numpy.nan,
     k_neighbours=5,
@@ -114,12 +116,25 @@ def spatial_axis(
                 # are distinctly within an annotation class, and then those that are "between" classes
                 distances = numpy.mean(distances, axis=1)
             all_dist.append(distances)
+        # No centroids found for this class, so distances are NaN.
         else:
+            
             distances = numpy.empty(len(shape_centroids))
             distances[:] = numpy.nan
             all_dist.append(distances)
 
     all_dist = numpy.array(all_dist).T
+
+    # How to handle NaN values
+    if missing_annotation_method.casefold() == "replace":
+        assert replace_value >= -1 and replace_value <= 1, "replace_value must be >= -1 and <= 1"
+        all_dist = numpy.nan_to_num(all_dist, nan = replace_value)
+    elif missing_annotation_method.casefold() == "knn":
+        from sklearn.impute import KNNImputer
+        imputer = KNNImputer(n_neighbors=k_neighbours)
+        print(1, all_dist.max())
+        all_dist = imputer.fit_transform(all_dist)
+        print(2, all_dist.max())
 
     relative_distance = compute_relative_positioning(all_dist)
 
@@ -189,12 +204,13 @@ def compute_relative_positioning(
     # Iterate over .shape[1] (the columns), which corresponds to the number of
     # broad annotation classes
     for col_idx in numpy.arange(distances.shape[1] - 1):
-        if (
-            numpy.isnan(distances[:, col_idx]).any()
-            or numpy.isnan(distances[:, col_idx + 1]).any()
-        ):
+        if numpy.isnan(distances[:, col_idx]).any():
             a = numpy.empty(distances[:, col_idx].shape)
-            a[:] = numpy.nan
+            a[:] = 1
+
+            # a = (distances[:, col_idx] - distances[:, col_idx + 1]) / (
+            #     distances[:, col_idx] + distances[:, col_idx + 1]
+            # )
         else:
             a = (distances[:, col_idx] - distances[:, col_idx + 1]) / (
                 distances[:, col_idx] + distances[:, col_idx + 1]
