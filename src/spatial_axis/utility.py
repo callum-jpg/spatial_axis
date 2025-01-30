@@ -3,6 +3,7 @@ import typing
 import numpy
 import shapely
 import skimage
+import geopandas
 
 
 def random_shapely_circles(
