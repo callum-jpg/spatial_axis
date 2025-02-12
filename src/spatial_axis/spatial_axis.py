@@ -62,15 +62,23 @@ def spatial_axis(
         # Convert centroids to shapely points.
         # This enables determining where points are found in
         # the broad_annotation GeoDataFrame
-        centroid_broad_annotation_class = []
-        # TODO: vectorize this
-        shape_centroid_points = [shapely.Point(x, y) for x, y in shape_centroids]
-        for shp_ctrd in shape_centroid_points:
-            centroid_broad_annotation_class.append(
-                broad_annotations.index[
-                    broad_annotations["geometry"].contains(shp_ctrd)
-                ].values[0]
-            )
+        shape_centroid_points = geopandas.GeoDataFrame(
+            geometry=[shapely.Point(x, y) for x, y in shape_centroids],
+            crs=broad_annotations.crs
+        )
+        # Find annotation polygons that contains each centroid
+        joined = geopandas.sjoin(shape_centroid_points, broad_annotations, how="left", predicate="within")
+        def select_annotation(annotations):
+            unique_matches = annotations.dropna().unique()
+            return unique_matches[0] if len(unique_matches) == 1 else None
+
+        # Group by the original point index (from points_gdf) and apply the function.
+        annotations_grouped = joined.groupby(joined.index)['index_right'].apply(select_annotation)
+
+        # Ensure the result is in the same order as the original points.
+        annotations_grouped = annotations_grouped.reindex(shape_centroid_points.index)
+        # Get annotation indices
+        centroid_broad_annotation_class = annotations_grouped.tolist()
         centroid_broad_annotation_class = numpy.array(centroid_broad_annotation_class)
     elif isinstance(broad_annotations, numpy.ndarray):
         floored_shape_centroids = numpy.floor(shape_centroids).astype(int)
