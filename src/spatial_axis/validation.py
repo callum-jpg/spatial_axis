@@ -15,5 +15,3 @@ def validate_input(
     if broad_annotations is not None:
         if isinstance(broad_annotations, geopandas.GeoDataFrame):
             assert "geometry" in broad_annotations.columns
-
-    

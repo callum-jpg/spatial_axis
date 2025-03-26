@@ -5,12 +5,11 @@ import typer
 from InquirerPy import inquirer
 
 from spatial_axis import spatial_axis
-from spatial_axis.validation import validate_spatial_axis_config
+# from spatial_axis.validation import validate_spatial_axis_config
 
 from ._search import search
 
 app = typer.Typer()
-
 
 @app.command()
 def calculate(config_file: str):
@@ -27,7 +26,7 @@ def calculate(config_file: str):
 
     config = tomllib.load(open(config_path, "rb"))
 
-    validate_spatial_axis_config(config)
+    # validate_spatial_axis_config(config)
 
     data_path = config.get("data_path")
     data_path = pathlib.Path(data_path)

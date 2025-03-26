@@ -68,7 +68,7 @@ def spatial_axis(
         k_neighbours=k_neighbours,
     )
 
-    print(all_dist)
+    print("all_dist1", all_dist)
 
     if missing_annotation_method is not None:
         # Handle NaN values
@@ -82,6 +82,8 @@ def spatial_axis(
 
             imputer = KNNImputer(n_neighbors=k_neighbours)
             all_dist = imputer.fit_transform(all_dist)
+
+    print("all_dist2", all_dist)
 
     relative_distance = compute_relative_positioning(all_dist)
 
@@ -173,7 +175,6 @@ def _spatial_axis(
     class_order,
     k_neighbours,
 ):
-
     # List to contain sample distance information
     all_dist = []
 
