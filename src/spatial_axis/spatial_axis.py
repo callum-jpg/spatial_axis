@@ -19,7 +19,7 @@ def spatial_axis(
     broad_annotations: typing.Union[geopandas.GeoDataFrame, numpy.ndarray] = None,
     missing_annotation_method: typing.Literal[None, "replace", "knn"] = None,
     replace_value: int = 1,
-    class_to_exclude: typing.Optional[typing.Union[int, typing.List[int]], None] = None,
+    class_to_exclude: typing.Optional[typing.Union[int, typing.List[int]]] | None = None,
     exclusion_value: typing.Optional[typing.Union[int, float, numpy.nan]] = numpy.nan,
     # broad_annotation_weights, # TODO: add this
 ) -> numpy.ndarray:
@@ -36,6 +36,8 @@ def spatial_axis(
     """
 
     validate_input(data, broad_annotations)
+
+    assert len(annotation_order) > 1, f"annotation_order length should be >1, got length {len(annotation_order)}"
 
     if isinstance(data, geopandas.GeoDataFrame):
         assert (
@@ -66,17 +68,20 @@ def spatial_axis(
         k_neighbours=k_neighbours,
     )
 
-    # Handle NaN values
-    if missing_annotation_method.casefold() == "replace":
-        assert (
-            replace_value >= -1 and replace_value <= 1
-        ), "replace_value must be >= -1 and <= 1"
-        all_dist = numpy.nan_to_num(all_dist, nan=replace_value)
-    elif missing_annotation_method.casefold() == "knn":
-        from sklearn.impute import KNNImputer
+    print(all_dist)
 
-        imputer = KNNImputer(n_neighbors=k_neighbours)
-        all_dist = imputer.fit_transform(all_dist)
+    if missing_annotation_method is not None:
+        # Handle NaN values
+        if missing_annotation_method.casefold() == "replace":
+            assert (
+                replace_value >= -1 and replace_value <= 1
+            ), "replace_value must be >= -1 and <= 1"
+            all_dist = numpy.nan_to_num(all_dist, nan=replace_value)
+        elif missing_annotation_method.casefold() == "knn":
+            from sklearn.impute import KNNImputer
+
+            imputer = KNNImputer(n_neighbors=k_neighbours)
+            all_dist = imputer.fit_transform(all_dist)
 
     relative_distance = compute_relative_positioning(all_dist)
 

@@ -2,11 +2,16 @@ import anndata
 import numpy
 import pandas
 
-def toy_anndata(n_samples = 10):
+def toy_anndata(n_samples = 10, class_id = None):
+    if class_id is not None:
+        assert len(class_id) == n_samples, f"Must provide a class_id for every sample."
+    else:
+        class_id = numpy.random.randint(0, 4, size=(n_samples))
+    
     adata = anndata.AnnData(
         X=numpy.random.normal(size=(n_samples, 10)), 
         obs=pandas.DataFrame(
-            numpy.random.randint(0, 4, size=(n_samples)), 
+            class_id, 
             columns=["class_id"]
             ),
         obsm = {
