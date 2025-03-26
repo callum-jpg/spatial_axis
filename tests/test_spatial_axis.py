@@ -116,3 +116,6 @@ class TestSpatialAxis:
         )
 
         numpy.testing.assert_almost_equal(observed, expected)
+
+    def test_anndata(self):
+        pass
