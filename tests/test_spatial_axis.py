@@ -51,6 +51,39 @@ def test_spatial_axis_anndata():
 
     numpy.testing.assert_equal(observed, expected)
 
+def test_spatial_axis_anndata_replace():
+    adata = toy_anndata(
+        n_samples = 4,
+        class_id = [0, 0, 1, 1],
+    )
+
+    # Replace has no impact since all classes are present
+    observed = spatial_axis(
+        adata,
+        annotation_column="class_id", 
+        annotation_order=[0, 1],
+        missing_annotation_method="replace",
+        k_neighbours=1
+    )
+
+    expected = numpy.array([-1, -1, 1, 1])
+
+    numpy.testing.assert_equal(observed, expected)
+
+    # Class not present, so replace nan with 0
+    observed = spatial_axis(
+        adata,
+        annotation_column="class_id", 
+        annotation_order=[0, 2],
+        missing_annotation_method="replace",
+        replace_value=0,
+        k_neighbours=1
+    )
+
+    expected = numpy.array([0, 0, 1, 1])
+
+    numpy.testing.assert_equal(observed, expected)
+
 # class TestSpatialAxis:
 #     #### TODO: reinstate labelmap support (this allows for 3D to be compatible. Otherwise,
 #     #### shapely does not support 3D polygons)
