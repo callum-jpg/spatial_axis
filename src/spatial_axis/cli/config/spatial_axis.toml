@@ -1,0 +1,24 @@
+# Can be a spatialdata object or anndata h5ad
+data_path = "/path/to/xenium.zarr"
+
+# Either define an annotation column OR broad annotation
+# Annotation column should be present in anndata.obs
+annotation_column = "lineage" 
+# broad_annotations # TODO: is this a path or a spatialdata element?
+
+k_neighbours = 5
+# annotation_column
+# missing_annotation_method
+# replace_value
+# class_to_exclude
+# exclusion_value
+
+# Order of annotations to calculate spatial axis
+annotation_order = ["edge", "cortex", "medulla"]
+
+# Column that will be added to anndata.obs
+save_column = "spatial_axis"
+
+# Allow for processing of experiments independently, 
+# that are otherwise in the same data object
+batch_id_column = "batch"
