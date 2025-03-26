@@ -1,136 +1,126 @@
 import typing
 
-import geopandas
 import anndata
+import geopandas
 import numpy
 import scipy
 import shapely
 import skimage
-from rasterio.features import rasterize
 
+from .constants import SpatialAxisConstants
 from .validation import validate_input
 
 
 def spatial_axis(
     data: typing.Union[anndata.AnnData, geopandas.GeoDataFrame, numpy.ndarray],
-    broad_annotation_order: typing.List[int],
+    annotation_order: typing.List[int],
     k_neighbours=5,
-    
     annotation_column: str = None,
     broad_annotations: typing.Union[geopandas.GeoDataFrame, numpy.ndarray] = None,
-    
-    missing_annotation_method: typing.Literal["none", "replace", "knn"] = "none",
+    missing_annotation_method: typing.Literal[None, "replace", "knn"] = None,
     replace_value: int = 1,
-    broad_annotations_to_exclude: typing.Optional[typing.Union[int, typing.List[int]]] = None,
-    exclusion_value: typing.Optional[typing.Union[int, float]] = numpy.nan,
+    class_to_exclude: typing.Optional[typing.Union[int, typing.List[int]], None] = None,
+    exclusion_value: typing.Optional[typing.Union[int, float, numpy.nan]] = numpy.nan,
     # broad_annotation_weights, # TODO: add this
 ) -> numpy.ndarray:
     """Find the relative positioning of uniquely labelled objects across
     broad annotations with a specific order.
 
     This enables the consideration of individual cells within the wider context
-    of anatomical tissue. For example, broad annotations may include the cortex
+    of anatomical tissue.
+
+    For example, broad annotations may include the cortex
     and medulla. It's useful to know that if a cell exists in the medulla region
     of the tissue, is it closer or further away from the cortex than other
     cells? ie. what is it's relative positioning?
-
-    Args:
-        instance_objects (typing.Union[geopandas.GeoDataFrame, numpy.ndarray]):
-        Individual objects that will have realtive positioning calculated.
-        Either a GeoPandas DataFrame with a Geometry column containing Shapely
-        polygons, or a NumPy array with instance labels. 
-        broad_annotations
-        (typing.Union[geopandas.GeoDataFrame, numpy.ndarray]): Contextual
-        annotations that will be used to determine the relative positioning of
-        instance objects. 
-        broad_annotation_order (typing.List[int]): Known
-        organisational order of the broad annotations. For example: cortex ->
-        medulla. Annotation order values must match the values in
-        broad_annotations. 
-        broad_annotations_to_exclude
-        (typing.Optional[typing.List[int]], optional): Broad annotations to
-        exclude. Defaults to None. 
-        exclusion_value
-        (typing.Optional[typing.Union[int, float]], optional): If a broad
-        annotation has been excluded, their relative positioning will be
-        replaced with this value. Defaults to numpy.nan. 
-        k_neighbours (int,
-        optional): Number of K neighbours used to calculate relative positioning
-        for each individual object. Higher values will give a "smoother"
-        relative positioning value. Defaults to 5.
-
-    Returns:
-        numpy.ndarray: 1D numpy array containing the relative positioning values
-        for each object
     """
+
     validate_input(data, broad_annotations)
 
     if isinstance(data, geopandas.GeoDataFrame):
-        assert broad_annotations is not None or annotation_column is not None, """Must provide either 
+        assert (
+            broad_annotations is not None or annotation_column is not None
+        ), """Must provide either 
     broad_annotations GeoDataFrame or an annotation column ID
     """
 
-    shape_centroids = _get_shape_centroids(data)
+    if broad_annotations is not None and annotation_column is not None:
+        raise ValueError(
+            "Got values for both broad_annotations and annotation_column. Provide only one."
+        )
+
+    centroids = _get_centroids(data)
 
     if broad_annotations is not None:
         # Broad annotations are provided. Find which centroids are inside
-        # each broad annotation
-        centroid_class = _get_centroid_class(shape_centroids, broad_annotations)
+        # each broad annotation and assign this as the centroid class
+        centroid_class = _get_centroid_class(centroids, broad_annotations)
     elif annotation_column is not None:
         # Directly load centroid class from anndata
-        centroid_class = data.obs[annotation_column].numpy()
+        centroid_class = data.obs[annotation_column].to_numpy()
 
     all_dist = _spatial_axis(
-        centroids = centroids,
-        centroid_class = centroid_class,
-        class_order = class_order,
+        centroids=centroids,
+        centroid_class=centroid_class,
+        class_order=annotation_order,
         k_neighbours=k_neighbours,
     )
 
-    # How to handle NaN values
+    # Handle NaN values
     if missing_annotation_method.casefold() == "replace":
-        assert replace_value >= -1 and replace_value <= 1, "replace_value must be >= -1 and <= 1"
-        all_dist = numpy.nan_to_num(all_dist, nan = replace_value)
+        assert (
+            replace_value >= -1 and replace_value <= 1
+        ), "replace_value must be >= -1 and <= 1"
+        all_dist = numpy.nan_to_num(all_dist, nan=replace_value)
     elif missing_annotation_method.casefold() == "knn":
         from sklearn.impute import KNNImputer
+
         imputer = KNNImputer(n_neighbors=k_neighbours)
         all_dist = imputer.fit_transform(all_dist)
 
     relative_distance = compute_relative_positioning(all_dist)
 
-    if broad_annotations_to_exclude is not None:
-        if isinstance(broad_annotations_to_exclude, int):
-            broad_annotations_to_exclude = [broad_annotations_to_exclude]
-
-        # We will use distances that are of a broad annotation
-        # to exclude
-        floored_shape_centroids = numpy.floor(shape_centroids).astype(int)
-        # Create a mask for regions of the image that contain
-        # values to exclude
-        exclusion_mask = numpy.isin(broad_annotations, broad_annotations_to_exclude)
-
-        # Get XY coordinates for the centroids
-        x, y = floored_shape_centroids[:, 0], floored_shape_centroids[:, 1]
-        # Determine which centroids to include
-        inclusion_mask = ~exclusion_mask[x, y]
-        # Mask the original (non-floored) centroids
-        # shape_centroids = shape_centroids[inclusion_mask]
-        relative_distance[~inclusion_mask] = exclusion_value
+    if class_to_exclude is not None:
+        relative_distance = _class_exclusion(
+            distances=relative_distance,
+            centroid_class=centroid_class,
+            class_to_exclude=class_to_exclude,
+            exclusion_value=exclusion_value,
+        )
 
     return relative_distance
 
-def _get_shape_centroids(data):
+
+def _class_exclusion(
+    distances,
+    centroid_class,
+    class_to_exclude,
+    exclusion_value,
+):
+    if isinstance(class_to_exclude, int):
+        class_to_exclude = [class_to_exclude]
+
+    exclusion_mask = numpy.isin(centroid_class, class_to_exclude)
+    distances[exclusion_mask] = exclusion_value
+
+    return distances
+
+
+def _get_centroids(data):
     if isinstance(data, anndata.AnnData):
-        shape_centroids = adata.obms["spatial"]
+        shape_centroids = data.obsm[SpatialAxisConstants.spatial_key]
         return shape_centroids
     elif isinstance(data, geopandas.GeoDataFrame):
         shape_centroids = (
-            instance_objects["geometry"].apply(lambda x: get_shapely_centroid(x)).to_numpy()
+            data[SpatialAxisConstants.geometry_key]
+            .apply(lambda x: get_shapely_centroid(x))
+            .to_numpy()
         )
         shape_centroids = numpy.stack(shape_centroids)
         return shape_centroids
     else:
         raise ValueError(f"Shape type {type(data)} not supported.")
+
 
 def _get_centroid_class(centroids, broad_annotations):
     if isinstance(broad_annotations, geopandas.GeoDataFrame):
@@ -139,16 +129,21 @@ def _get_centroid_class(centroids, broad_annotations):
         # the broad_annotation GeoDataFrame
         centroid_points = geopandas.GeoDataFrame(
             geometry=[shapely.Point(x, y) for x, y in centroids],
-            crs=broad_annotations.crs
+            crs=broad_annotations.crs,
         )
         # Find annotation polygons that contains each centroid
-        joined = geopandas.sjoin(centroid_points, broad_annotations, how="left", predicate="within")
+        joined = geopandas.sjoin(
+            centroid_points, broad_annotations, how="left", predicate="within"
+        )
+
         def select_annotation(annotations):
             unique_matches = annotations.dropna().unique()
             return unique_matches[0] if len(unique_matches) == 1 else None
 
         # Group by the original point index (from points_gdf) and apply the function.
-        annotations_grouped = joined.groupby(joined.index)['index_right'].apply(select_annotation)
+        annotations_grouped = joined.groupby(joined.index)["index_right"].apply(
+            select_annotation
+        )
 
         # Ensure the result is in the same order as the original points.
         annotations_grouped = annotations_grouped.reindex(centroid_points.index)
@@ -157,7 +152,7 @@ def _get_centroid_class(centroids, broad_annotations):
         centroid_class = numpy.array(centroid_class)
     elif isinstance(broad_annotations, numpy.ndarray):
         floored_shape_centroids = numpy.floor(centroids).astype(int)
-        x, y = floored_centroids[:, 0], floored_centroids[:, 1]
+        x, y = floored_shape_centroids[:, 0], floored_shape_centroids[:, 1]
         centroid_class = broad_annotations[x, y]
     else:
         ValueError(
@@ -168,9 +163,9 @@ def _get_centroid_class(centroids, broad_annotations):
 
 
 def _spatial_axis(
-    shape_centroids,
-    centroid_annotation,
-    ordered_annotations,
+    centroids,
+    centroid_class,
+    class_order,
     k_neighbours,
 ):
 
@@ -180,10 +175,8 @@ def _spatial_axis(
     # Iterate over each broad annotation class and create a
     # cKDTree for each group of centroids that are within
     # that class
-    for broad_annotation_class in ordered_annotations:
-        class_centroids = shape_centroids[
-            numpy.where(centroid_annotation == broad_annotation_class)
-        ]
+    for class_id in class_order:
+        class_centroids = centroids[numpy.where(centroid_class == class_id)]
 
         # Ensure the class has centroids
         if class_centroids.shape[0] != 0:
@@ -200,7 +193,7 @@ def _spatial_axis(
 
             # Based on all centroids, query their nearest neighbours. 0 if closest
             # to themselves, otherwise the euclidean distance to the class of interest
-            distances, _ = tree.query(shape_centroids, k=tree_k_neighbours)
+            distances, _ = tree.query(centroids, k=tree_k_neighbours)
 
             if not tree_k_neighbours == 1:
                 # Now we have the distances to nearest neighbours depending on the value of k
@@ -211,8 +204,7 @@ def _spatial_axis(
             all_dist.append(distances)
         # No centroids found for this class, so distances are NaN.
         else:
-            
-            distances = numpy.empty(len(shape_centroids))
+            distances = numpy.empty(len(centroids))
             distances[:] = numpy.nan
             all_dist.append(distances)
 
@@ -281,44 +273,6 @@ def compute_relative_positioning(
     inter_class_distances = numpy.array(numpy.nansum(inter_class_distances, axis=0))
 
     return inter_class_distances
-
-
-def spatial_axis_to_labelmap(
-    shape_gdf: geopandas.GeoDataFrame,
-    image_shape: typing.Tuple[int, int],
-    geometry_column: str = "geometry",
-    spatial_axis_column: str = "spatial_axis",
-    background_value: int = 0,
-) -> numpy.ndarray:
-    """
-    Convert a GeoPandas DataFrame containing a spatial axis column of relative
-    object positionings into a label map for plotting.
-
-    Args:
-        shape_gdf (geopandas.GeoDataFrame): GeoDataFrame containing a geometry
-        and spatial_axis column image_shape (typing.Tuple[int, int]): Shape of
-        image to rasterize polygons onto. geometry_column (str, optional): Name
-        of column containing Shapely polygons. Defaults to "geometry".
-        spatial_axis_column (str, optional): Name of column containing relative
-        positioning spatial axis values. Defaults to "spatial_axis".
-        background_value (int, optional): Background value. Defaults to 0.
-
-    Returns:
-        numpy.ndarray: Rasterized labelmap with objects colored based upon their
-        relative positioning.
-    """
-
-    spatial_axis_polygons = shape_gdf.apply(
-        lambda row: (row[geometry_column], row[spatial_axis_column]), axis=1
-    ).tolist()
-
-    rasterized_polygons = rasterize(
-        [(poly, label) for poly, label in spatial_axis_polygons],
-        out_shape=image_shape,
-        fill=background_value,
-    )
-
-    return rasterized_polygons
 
 
 def get_label_centroids(
