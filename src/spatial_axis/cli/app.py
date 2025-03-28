@@ -5,6 +5,7 @@ import typer
 from InquirerPy import inquirer
 
 from spatial_axis import spatial_axis
+import anndata
 # from spatial_axis.validation import validate_spatial_axis_config
 
 from ._search import search
@@ -31,39 +32,66 @@ def calculate(config_file: str):
     data_path = config.get("data_path")
     data_path = pathlib.Path(data_path)
 
-    if data_path.suffix == ".zarr":
-        import spatialdata
+    save_path = config.get("save_path")
+    assert save_path is not None, "Please provide save_path"
 
+    added_spatial_axis_key = config.get("save_column", "spatial_axis")
+    
+    batch_id = config.get("batch_id_column")
+
+    if data_path.suffix == ".zarr":
         # SpatialData
-        sdata = spatialdata.read_zarr(data_path, selection=["table", "tables"])
+        import spatialdata
+        sdata = spatialdata.read_zarr(data_path)
         data = sdata.tables["table"]
     elif data_path.suffix == ".h5ad":
-        import anndata
-
+        # AnnData
         data = anndata.io.read_h5ad(data_path)
     else:
         raise ValueError(
             f"Cannot determine a reader for {data_path.suffix}. Expected a .zarr or .h5ad file."
         )
 
-    sp_ax = spatial_axis(
-        data=data,
-        annotation_order=config.get("annotation_order"),
-        k_neighbours=config.get("k_neighbours"),
-        annotation_column=config.get("annotation_column"),
-        broad_annotations=config.get("broad_annotations"),
-        missing_annotation_method=config.get("missing_annotation_method"),
-        replace_value=config.get("replace_value"),
-        class_to_exclude=config.get("class_to_exclude"),
-        exclusion_value=config.get("exclusion_value"),
-    )
 
-    data["spatial_axis"] = sp_ax
+    if batch_id is not None:
+        all_batch_data = []
+        batched_data = data.obs.groupby(batch_id).indices.items()
+        import numpy
+        spatial_data = numpy.zeros(len(data))
+        for batch_key, batch_idx in batched_data:
+            # Calculate spatial axis for the batch
+            sp_ax = spatial_axis(
+                data=data[batch_idx],
+                annotation_order=config.get("annotation_order"),
+                k_neighbours=config.get("k_neighbours"),
+                annotation_column=config.get("annotation_column"),
+                broad_annotations=config.get("broad_annotations"),
+                missing_annotation_method=config.get("missing_annotation_method"),
+                replace_value=config.get("replace_value"),
+                class_to_exclude=config.get("class_to_exclude"),
+                exclusion_value=config.get("exclusion_value"),
+            )
 
-    save_path = config.get("save_path")
+            spatial_data[batch_idx] = sp_ax
+
+        data.obs[added_spatial_axis_key] = spatial_data
+
+    else:
+        sp_ax = spatial_axis(
+            data=data,
+            annotation_order=config.get("annotation_order"),
+            k_neighbours=config.get("k_neighbours"),
+            annotation_column=config.get("annotation_column"),
+            broad_annotations=config.get("broad_annotations"),
+            missing_annotation_method=config.get("missing_annotation_method"),
+            replace_value=config.get("replace_value"),
+            class_to_exclude=config.get("class_to_exclude"),
+            exclusion_value=config.get("exclusion_value"),
+        )
+        data.obs[added_spatial_axis_key] = sp_ax
 
     if data_path.suffix == ".zarr":
-        sdata.write(save_path)
+        sdata.write(save_path, overwrite=True)
 
     elif data_path.suffix == ".h5ad":
         data.write_h5ad(save_path)
