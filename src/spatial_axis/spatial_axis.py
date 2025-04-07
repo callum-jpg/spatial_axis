@@ -20,6 +20,7 @@ def spatial_axis(
     missing_annotation_method: typing.Literal[None, "replace", "knn"] = None,
     replace_value: int = 1,
     class_to_exclude: typing.Optional[typing.Union[int, typing.List[int]]] | None = None,
+    auxiliary_class: str = None,
     exclusion_value: typing.Optional[typing.Union[int, float, numpy.nan]] = numpy.nan,
     # broad_annotation_weights, # TODO: add this
 ) -> numpy.ndarray:
@@ -61,11 +62,14 @@ def spatial_axis(
         # Directly load centroid class from anndata
         centroid_class = data.obs[annotation_column].to_numpy()
 
+    assert centroid_class is not None, "Cannot define centroid class. Ensure you provide either broad_annotations or annotation_column."
+
     all_dist = _spatial_axis(
         centroids=centroids,
         centroid_class=centroid_class,
         class_order=annotation_order,
         k_neighbours=k_neighbours,
+        auxiliary_class=auxiliary_class,
     )
 
     if missing_annotation_method is not None:
@@ -170,9 +174,14 @@ def _spatial_axis(
     centroid_class,
     class_order,
     k_neighbours,
+    auxiliary_class = None,
 ):
     # List to contain sample distance information
     all_dist = []
+
+    if auxiliary_class is not None:
+        auxiliary_centroids = centroids[numpy.where(centroid_class == auxiliary_class)]
+        assert len(auxiliary_centroids) > 0, "No auxillary class centroids found."
 
     # Iterate over each broad annotation class and create a
     # cKDTree for each group of centroids that are within
@@ -190,19 +199,15 @@ def _spatial_axis(
                 else class_centroids.shape[0]
             )
 
-            # Create a tree
-            tree = scipy.spatial.cKDTree(class_centroids)
-
-            # Based on all centroids, query their nearest neighbours. 0 if closest
-            # to themselves, otherwise the euclidean distance to the class of interest
-            distances, _ = tree.query(centroids, k=tree_k_neighbours)
-
-            if not tree_k_neighbours == 1:
-                # Now we have the distances to nearest neighbours depending on the value of k
-                # (first distance will be 0 if the class an item was in is queried). Now, we can
-                # calculate the mean for all neighbours. Presumably, this will identify cells that
-                # are distinctly within an annotation class, and then those that are "between" classes
-                distances = numpy.mean(distances, axis=1)
+            # Find the distance to the current class and to the auxillary structure
+            # Mean aggregate these distances
+            if auxiliary_class is not None:
+                distance_to_aux = get_centroid_distances(centroids, auxiliary_centroids, tree_k_neighbours)
+                distances = get_centroid_distances(centroids, class_centroids, tree_k_neighbours)
+                distances = numpy.mean([distances, distance_to_aux], axis=0)
+            else:
+                distances = get_centroid_distances(centroids, class_centroids, tree_k_neighbours)
+            
             all_dist.append(distances)
         # No centroids found for this class, so distances are NaN.
         else:
@@ -213,6 +218,28 @@ def _spatial_axis(
     all_dist = numpy.array(all_dist).T
 
     return all_dist
+
+
+def get_centroid_distances(
+    centroids,
+    class_centroids,
+    tree_k_neighbours
+):
+    # Create a tree
+    tree = scipy.spatial.cKDTree(class_centroids)
+
+    # Based on all centroids, query their nearest neighbours. 0 if closest
+    # to themselves, otherwise the euclidean distance to the class of interest
+    distances, _ = tree.query(centroids, k=tree_k_neighbours)
+
+    if not tree_k_neighbours == 1:
+        # Now we have the distances to nearest neighbours depending on the value of k
+        # (first distance will be 0 if the class an item was in is queried). Now, we can
+        # calculate the mean for all neighbours. Presumably, this will identify cells that
+        # are distinctly within an annotation class, and then those that are "between" classes
+        distances = numpy.mean(distances, axis=1)
+
+    return distances
 
 
 def get_shapely_centroid(polygon: shapely.Polygon) -> numpy.ndarray:

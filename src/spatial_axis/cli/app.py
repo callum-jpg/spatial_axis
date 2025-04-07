@@ -70,6 +70,7 @@ def calculate(config_file: str):
                 replace_value=config.get("replace_value"),
                 class_to_exclude=config.get("class_to_exclude"),
                 exclusion_value=config.get("exclusion_value"),
+                auxiliary_class=config.get("auxiliary_class"),
             )
 
             spatial_data[batch_idx] = sp_ax
@@ -87,6 +88,7 @@ def calculate(config_file: str):
             replace_value=config.get("replace_value"),
             class_to_exclude=config.get("class_to_exclude"),
             exclusion_value=config.get("exclusion_value"),
+            auxiliary_class=config.get("auxiliary_class"),
         )
         data.obs[added_spatial_axis_key] = sp_ax
 
