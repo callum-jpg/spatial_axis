@@ -6,10 +6,12 @@ import numpy
 import scipy
 import shapely
 import skimage
+import logging
 
 from .constants import SpatialAxisConstants
 from .validation import validate_input
 
+log = logging.getLogger(__name__)
 
 def spatial_axis(
     data: typing.Union[anndata.AnnData, geopandas.GeoDataFrame, numpy.ndarray],
@@ -187,7 +189,9 @@ def _spatial_axis(
 
     if auxiliary_class is not None:
         auxiliary_centroids = centroids[numpy.where(centroid_class == auxiliary_class)]
-        assert len(auxiliary_centroids) > 0, "No auxillary class centroids found."
+        if len(auxiliary_centroids) == 0:
+            log.warning("No auxillary class centroids found. Calculating spatial_axis without auxiliary_class")
+            auxiliary_class = None
 
     # Iterate over each broad annotation class and create a
     # cKDTree for each group of centroids that are within

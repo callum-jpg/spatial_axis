@@ -8,9 +8,11 @@ from InquirerPy import inquirer
 from spatial_axis import spatial_axis
 
 from ._search import search
+import logging
 
 # from spatial_axis.validation import validate_spatial_axis_config
 
+log = logging.getLogger(__name__)
 
 app = typer.Typer()
 
@@ -57,12 +59,12 @@ def calculate(config_file: str):
         )
 
     if batch_id is not None:
-        all_batch_data = []
         batched_data = data.obs.groupby(batch_id).indices.items()
         import numpy
 
         spatial_data = numpy.zeros(len(data))
         for batch_key, batch_idx in batched_data:
+            log.info(f"Computing spatial_axis for: {batch_key}")
             # Calculate spatial axis for the batch
             sp_ax = spatial_axis(
                 data=data[batch_idx],
@@ -82,6 +84,7 @@ def calculate(config_file: str):
         data.obs[added_spatial_axis_key] = spatial_data
 
     else:
+        log.info("Computing spatial_axis")
         sp_ax = spatial_axis(
             data=data,
             annotation_order=config.get("annotation_order"),
@@ -95,6 +98,8 @@ def calculate(config_file: str):
             auxiliary_class=config.get("auxiliary_class"),
         )
         data.obs[added_spatial_axis_key] = sp_ax
+        
+    log.info(f"Saving {save_path}")
 
     if data_path.suffix == ".zarr":
         sdata.write(save_path, overwrite=True)
