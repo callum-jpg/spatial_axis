@@ -1,22 +1,17 @@
-import geopandas
 import numpy
-import shapely
 
 from spatial_axis import spatial_axis
-from spatial_axis.utility import create_broad_annotation_polygons
 from spatial_axis.data import toy_anndata
+
 
 def test_spatial_axis_anndata():
     adata = toy_anndata(
-        n_samples = 4,
-        class_id = [0, 0, 1, 1],
+        n_samples=4,
+        class_id=[0, 0, 1, 1],
     )
 
     observed = spatial_axis(
-        adata,
-        annotation_column="class_id", 
-        annotation_order=[0, 1],
-        k_neighbours=1
+        adata, annotation_column="class_id", annotation_order=[0, 1], k_neighbours=1
     )
 
     """
@@ -51,19 +46,20 @@ def test_spatial_axis_anndata():
 
     numpy.testing.assert_equal(observed, expected)
 
+
 def test_spatial_axis_anndata_replace():
     adata = toy_anndata(
-        n_samples = 4,
-        class_id = [0, 0, 1, 1],
+        n_samples=4,
+        class_id=[0, 0, 1, 1],
     )
 
     # Replace has no impact since all classes are present
     observed = spatial_axis(
         adata,
-        annotation_column="class_id", 
+        annotation_column="class_id",
         annotation_order=[0, 1],
         missing_annotation_method="replace",
-        k_neighbours=1
+        k_neighbours=1,
     )
 
     expected = numpy.array([-1, -1, 1, 1])
@@ -73,26 +69,27 @@ def test_spatial_axis_anndata_replace():
     # Class not present, so replace nan with 0
     observed = spatial_axis(
         adata,
-        annotation_column="class_id", 
+        annotation_column="class_id",
         annotation_order=[0, 2],
         missing_annotation_method="replace",
         replace_value=0,
-        k_neighbours=1
+        k_neighbours=1,
     )
 
     expected = numpy.array([0, 0, 1, 1])
 
     numpy.testing.assert_equal(observed, expected)
 
+
 def test_spatial_axis_auxiliary_class():
     adata = toy_anndata(
-        n_samples = 3,
-        class_id = [0, 1, 2],
+        n_samples=3,
+        class_id=[0, 1, 2],
     )
 
     observed = spatial_axis(
         adata,
-        annotation_column="class_id", 
+        annotation_column="class_id",
         annotation_order=[0, 1],
         auxiliary_class=2,
         k_neighbours=1,
@@ -126,8 +123,6 @@ def test_spatial_axis_auxiliary_class():
     centroid is calculcated (ie. no sum step)
     """
 
-    expected = numpy.array([-0.2, 1/3, 1/3])
+    expected = numpy.array([-0.2, 1 / 3, 1 / 3])
 
     numpy.testing.assert_almost_equal(observed, expected)
-
-

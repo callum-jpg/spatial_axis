@@ -1,16 +1,19 @@
 import pathlib
 import tomllib
 
+import anndata
 import typer
 from InquirerPy import inquirer
 
 from spatial_axis import spatial_axis
-import anndata
-# from spatial_axis.validation import validate_spatial_axis_config
 
 from ._search import search
 
+# from spatial_axis.validation import validate_spatial_axis_config
+
+
 app = typer.Typer()
+
 
 @app.command()
 def calculate(config_file: str):
@@ -36,12 +39,13 @@ def calculate(config_file: str):
     assert save_path is not None, "Please provide save_path"
 
     added_spatial_axis_key = config.get("save_column", "spatial_axis")
-    
+
     batch_id = config.get("batch_id_column")
 
     if data_path.suffix == ".zarr":
         # SpatialData
         import spatialdata
+
         sdata = spatialdata.read_zarr(data_path)
         data = sdata.tables["table"]
     elif data_path.suffix == ".h5ad":
@@ -52,11 +56,11 @@ def calculate(config_file: str):
             f"Cannot determine a reader for {data_path.suffix}. Expected a .zarr or .h5ad file."
         )
 
-
     if batch_id is not None:
         all_batch_data = []
         batched_data = data.obs.groupby(batch_id).indices.items()
         import numpy
+
         spatial_data = numpy.zeros(len(data))
         for batch_key, batch_idx in batched_data:
             # Calculate spatial axis for the batch

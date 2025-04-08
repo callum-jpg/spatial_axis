@@ -19,7 +19,9 @@ def spatial_axis(
     broad_annotations: typing.Union[geopandas.GeoDataFrame, numpy.ndarray] = None,
     missing_annotation_method: typing.Literal[None, "replace", "knn"] = None,
     replace_value: int = 1,
-    class_to_exclude: typing.Optional[typing.Union[int, typing.List[int]]] | None = None,
+    class_to_exclude: (
+        typing.Optional[typing.Union[int, typing.List[int]]] | None
+    ) = None,
     auxiliary_class: str = None,
     exclusion_value: typing.Optional[typing.Union[int, float, numpy.nan]] = numpy.nan,
     # broad_annotation_weights, # TODO: add this
@@ -38,7 +40,9 @@ def spatial_axis(
 
     validate_input(data, broad_annotations)
 
-    assert len(annotation_order) > 1, f"annotation_order length should be >1, got length {len(annotation_order)}"
+    assert (
+        len(annotation_order) > 1
+    ), f"annotation_order length should be >1, got length {len(annotation_order)}"
 
     if isinstance(data, geopandas.GeoDataFrame):
         assert (
@@ -62,7 +66,9 @@ def spatial_axis(
         # Directly load centroid class from anndata
         centroid_class = data.obs[annotation_column].to_numpy()
 
-    assert centroid_class is not None, "Cannot define centroid class. Ensure you provide either broad_annotations or annotation_column."
+    assert (
+        centroid_class is not None
+    ), "Cannot define centroid class. Ensure you provide either broad_annotations or annotation_column."
 
     all_dist = _spatial_axis(
         centroids=centroids,
@@ -174,7 +180,7 @@ def _spatial_axis(
     centroid_class,
     class_order,
     k_neighbours,
-    auxiliary_class = None,
+    auxiliary_class=None,
 ):
     # List to contain sample distance information
     all_dist = []
@@ -203,14 +209,20 @@ def _spatial_axis(
             # Mean aggregate these distances
             if auxiliary_class is not None:
                 # Get the distance of all centroids to the auxiliary class
-                distance_to_aux = get_centroid_distances(centroids, auxiliary_centroids, tree_k_neighbours)
+                distance_to_aux = get_centroid_distances(
+                    centroids, auxiliary_centroids, tree_k_neighbours
+                )
                 # Get the distance of all centroids to the current centroid class iteration
-                centroid_distances = get_centroid_distances(centroids, class_centroids, tree_k_neighbours)
+                centroid_distances = get_centroid_distances(
+                    centroids, class_centroids, tree_k_neighbours
+                )
                 # Take the mean of the distances to both classes
                 distances = numpy.mean([centroid_distances, distance_to_aux], axis=0)
             else:
-                distances = get_centroid_distances(centroids, class_centroids, tree_k_neighbours)
-            
+                distances = get_centroid_distances(
+                    centroids, class_centroids, tree_k_neighbours
+                )
+
             all_dist.append(distances)
         # No centroids found for this class, so distances are NaN.
         else:
@@ -223,11 +235,7 @@ def _spatial_axis(
     return all_dist
 
 
-def get_centroid_distances(
-    centroids,
-    class_centroids,
-    tree_k_neighbours
-):
+def get_centroid_distances(centroids, class_centroids, tree_k_neighbours):
     # Create a tree
     tree = scipy.spatial.cKDTree(class_centroids)
 
@@ -292,10 +300,10 @@ def compute_relative_positioning(
     for col_idx in numpy.arange(distances.shape[1] - 1):
         if numpy.isnan(distances[:, col_idx]).any():
             # A distance may be nan due to a missing annotation
-            # In this scenario, we set the relative distance to 1. 
+            # In this scenario, we set the relative distance to 1.
             # This therefore asumes that the missing annotation is
             # close/inside its neighbour (col_idx + 1).
-            # This is an assumption, but offers as a form of imputation 
+            # This is an assumption, but offers as a form of imputation
             # for missing data.
             relative_dist = numpy.empty(distances[:, col_idx].shape)
             relative_dist[:] = 1
@@ -308,9 +316,9 @@ def compute_relative_positioning(
                 difference,
                 summation,
                 # Avoid zero division error
-                where = (difference != 0) | (summation != 0),
+                where=(difference != 0) | (summation != 0),
                 # Keep values as 0 where the condition is met
-                out = numpy.zeros_like(difference, dtype=float),
+                out=numpy.zeros_like(difference, dtype=float),
             )
 
         inter_class_distances.append(relative_dist)

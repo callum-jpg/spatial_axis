@@ -1,9 +1,15 @@
 from pathlib import Path
-from typing import Optional, List
+from typing import List, Optional
 
-def is_valid(p: Path, dir_only: Optional[bool] = None, suffix: Optional[str] = None) -> bool:
+
+def is_valid(
+    p: Path, dir_only: Optional[bool] = None, suffix: Optional[str] = None
+) -> bool:
     """Check if a given path meets the directory and suffix criteria."""
-    return (dir_only is None or p.is_dir() == dir_only) and (suffix is None or p.suffix == suffix)
+    return (dir_only is None or p.is_dir() == dir_only) and (
+        suffix is None or p.suffix == suffix
+    )
+
 
 def search(
     path: Path,

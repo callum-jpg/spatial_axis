@@ -1,9 +1,9 @@
 import typing
 
+import geopandas
 import numpy
 import shapely
 import skimage
-import geopandas
 
 
 def random_shapely_circles(
@@ -141,6 +141,7 @@ def label_and_split(
         output[unq] = single_rgb_label
 
     return labels, output
+
 
 def find_bounds(data: geopandas.GeoDataFrame, padding_proportion: float = 1):
     bounds = data.total_bounds * padding_proportion

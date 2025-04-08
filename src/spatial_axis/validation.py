@@ -1,11 +1,8 @@
 import anndata
 import geopandas
 
-def validate_input(
-    data,
-    broad_annotations = None
 
-):
+def validate_input(data, broad_annotations=None):
     if isinstance(data, anndata.AnnData):
         assert "spatial" in data.obsm, "AnnData object must have 'spatial' in obsm"
 

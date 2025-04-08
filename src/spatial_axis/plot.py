@@ -1,7 +1,9 @@
-import geopandas
 import typing
+
+import geopandas
 import numpy
 from rasterio.features import rasterize
+
 
 def spatial_axis_to_labelmap(
     shape_gdf: geopandas.GeoDataFrame,
