@@ -84,116 +84,50 @@ def test_spatial_axis_anndata_replace():
 
     numpy.testing.assert_equal(observed, expected)
 
-# class TestSpatialAxis:
-#     #### TODO: reinstate labelmap support (this allows for 3D to be compatible. Otherwise,
-#     #### shapely does not support 3D polygons)
-#     # def test_hierarchical_labels(self):
-#     #     expected = numpy.array(
-#     #         [
-#     #             [-1.0, 0.0, 0.0, 0.0],
-#     #             [0.0, -1.0, 0.0, 0.0],
-#     #             [0.0, 0.0, 1.0, 0.0],
-#     #             [0.0, 0.0, 0.0, 1.0],
-#     #         ]
-#     #     )
+def test_spatial_axis_auxiliary_class():
+    adata = toy_anndata(
+        n_samples = 3,
+        class_id = [0, 1, 2],
+    )
 
-#     #     labels = numpy.eye(4)
-#     #     # Uniquely label non-zero diagonal elements
-#     #     labels = scipy.ndimage.label(labels)[0]
+    observed = spatial_axis(
+        adata,
+        annotation_column="class_id", 
+        annotation_order=[0, 1],
+        auxiliary_class=2,
+        k_neighbours=1,
+    )
 
-#     #     # Define broad annotations
-#     #     broad_annotations = numpy.zeros_like(labels)
-#     #     broad_annotations[:, :2] = 1
-#     #     broad_annotations[:, 2:] = 2
+    """Explanation of expected:
 
-#     #     me = SpatialAxis(
-#     #         instance_shapes=labels,
-#     #         broad_annotation_shapes=broad_annotations,
-#     #         broad_annotation_order=[1, 2],
-#     #     )
-#     #     rel_distances = me.get_relative_distances(k_neighbours=1)
+    We are also now computing the distance between class
+    centroids AND to a single auxiliary class. The resulting
+    distances are mean aggregated.
 
-#     #     rel_labs = me.get_relative_distance_labelmap(rel_distances)
+    For centroid 1, which is at position [0, 0], the distances to 
+    all centroids are: [0, 1.41, 2.82] for class 0.
 
-#     #     numpy.testing.assert_array_equal(rel_labs, expected)
+    For centroid 1, the distance to the auxiliary class is:
+    [2.82, 1.41, 0].
 
-#     # def test_3d_hierarchical_labels(self):
-#     #     expected = numpy.array(
-#     #         [
-#     #             [[-1, 0, 0], [0, 0, 0], [0, 0, 0]],
-#     #             [[0, 0, 0], [0, -1, 0], [0, 0, 0]],
-#     #             [[0, 0, 0], [0, 0, 0], [0, 0, 1]],
-#     #         ]
-#     #     )
+    The mean distances for each centroid is: [1.41, 1.41, 1.41] for
+    for class 0.
 
-#     #     labels = numpy.zeros((3, 3, 3)).astype(int)
+    For class 2:
+    distance to centroids: [1.41, 0, 1.41]
+    distance to aux: [2.82, 1.41, 0]
+    mean distances: [2.115, 0.705, 0.705]
 
-#     #     broad_annotations = labels.copy()
+    Relative position is computed as before (example for the first
+    centroid only. ie. 0th postion):
+    (1.41 - 2.115) / (1.41 + 2.115) = -0.2
+    
+    There is only two classes, so only one relative position per
+    centroid is calculcated (ie. no sum step)
+    """
 
-#     #     labels[0, 0, 0] = 1
-#     #     labels[1, 1, 1] = 2
-#     #     labels[2, 2, 2] = 3
+    expected = numpy.array([-0.2, 1/3, 1/3])
 
-#     #     broad_annotations[:, :, :2] = 1
-#     #     broad_annotations[:, :, 2:] = 2
+    numpy.testing.assert_almost_equal(observed, expected)
 
-#     #     me = SpatialAxis(
-#     #         instance_shapes=labels,
-#     #         broad_annotation_shapes=broad_annotations,
-#     #         broad_annotation_order=[1, 2],
-#     #     )
-#     #     rel_distances = me.get_relative_distances(k_neighbours=1)
 
-#     #     rel_labs = me.get_relative_distance_labelmap(rel_distances)
-
-#     #     numpy.testing.assert_array_equal(rel_labs, expected)
-
-#     def test_shapely_labels(self):
-#         instance_polygons = [
-#             shapely.geometry.box(0, 0, 1, 1),
-#             shapely.geometry.box(1, 1, 2, 2),
-#             shapely.geometry.box(2, 2, 3, 3),
-#             shapely.geometry.box(3, 3, 4, 4),
-#             shapely.geometry.box(4, 4, 5, 5),
-#             shapely.geometry.box(5, 5, 6, 6),
-#             shapely.geometry.box(6, 6, 7, 7),
-#         ]
-
-#         broad_annotation_polygons = create_broad_annotation_polygons(
-#             (10, 10),
-#             num_levels=3,
-#             downscale_factor=0.8,
-#         )
-
-#         cells_df = geopandas.GeoDataFrame(
-#             {
-#                 "geometry": instance_polygons,
-#                 "annotation_id": numpy.arange(1, len(instance_polygons) + 1),
-#             }
-#         )
-
-#         broad_df = geopandas.GeoDataFrame(
-#             {
-#                 "geometry": broad_annotation_polygons,
-#                 "broad_annotation_id": [1, 2, 3],
-#             }
-#         )
-#         # SpatialData uses label IDs as the index, so we do to
-#         cells_df = cells_df.set_index("annotation_id")
-#         broad_df = broad_df.set_index("broad_annotation_id")
-
-#         observed = spatial_axis(
-#             instance_objects=cells_df,
-#             broad_annotations=broad_df,
-#             broad_annotation_order=[1, 2, 3],
-#             k_neighbours=1,
-#         )
-
-#         expected = numpy.array(
-#             [-1.3333333, 0.0, 1.3333333, 1.2, 1.1428571, 1.1111111, 1.0909091]
-#         )
-
-#         numpy.testing.assert_almost_equal(observed, expected)
-
-#     def test_anndata(self):
-#         pass

@@ -202,9 +202,12 @@ def _spatial_axis(
             # Find the distance to the current class and to the auxillary structure
             # Mean aggregate these distances
             if auxiliary_class is not None:
+                # Get the distance of all centroids to the auxiliary class
                 distance_to_aux = get_centroid_distances(centroids, auxiliary_centroids, tree_k_neighbours)
-                distances = get_centroid_distances(centroids, class_centroids, tree_k_neighbours)
-                distances = numpy.mean([distances, distance_to_aux], axis=0)
+                # Get the distance of all centroids to the current centroid class iteration
+                centroid_distances = get_centroid_distances(centroids, class_centroids, tree_k_neighbours)
+                # Take the mean of the distances to both classes
+                distances = numpy.mean([centroid_distances, distance_to_aux], axis=0)
             else:
                 distances = get_centroid_distances(centroids, class_centroids, tree_k_neighbours)
             
