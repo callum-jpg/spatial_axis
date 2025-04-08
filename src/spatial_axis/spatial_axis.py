@@ -259,6 +259,7 @@ def get_shapely_centroid(polygon: shapely.Polygon) -> numpy.ndarray:
 
 def compute_relative_positioning(
     distances: numpy.ndarray,
+    eps: float = 1e-6,
 ) -> numpy.ndarray:
     """
     This function is intended to normalize the distances between N number of
@@ -290,19 +291,32 @@ def compute_relative_positioning(
     # broad annotation classes
     for col_idx in numpy.arange(distances.shape[1] - 1):
         if numpy.isnan(distances[:, col_idx]).any():
-            a = numpy.empty(distances[:, col_idx].shape)
-            a[:] = 1
-
-            # a = (distances[:, col_idx] - distances[:, col_idx + 1]) / (
-            #     distances[:, col_idx] + distances[:, col_idx + 1]
-            # )
+            # A distance may be nan due to a missing annotation
+            # In this scenario, we set the relative distance to 1. 
+            # This therefore asumes that the missing annotation is
+            # close/inside its neighbour (col_idx + 1).
+            # This is an assumption, but offers as a form of imputation 
+            # for missing data.
+            relative_dist = numpy.empty(distances[:, col_idx].shape)
+            relative_dist[:] = 1
         else:
-            a = (distances[:, col_idx] - distances[:, col_idx + 1]) / (
-                distances[:, col_idx] + distances[:, col_idx + 1]
-            )
-        inter_class_distances.append(a)
+            difference = distances[:, col_idx] - distances[:, col_idx + 1]
+            summation = distances[:, col_idx] + distances[:, col_idx + 1]
 
-    inter_class_distances = numpy.array(numpy.nansum(inter_class_distances, axis=0))
+            # Compute the normalised difference
+            relative_dist = numpy.divide(
+                difference,
+                summation,
+                # Avoid zero division error
+                where = (difference != 0) | (summation != 0),
+                # Keep values as 0 where the condition is met
+                out = numpy.zeros_like(difference, dtype=float),
+            )
+
+        inter_class_distances.append(relative_dist)
+
+    inter_class_distances = numpy.array(inter_class_distances)
+    inter_class_distances = numpy.nansum(inter_class_distances, axis=0)
 
     return inter_class_distances
 
