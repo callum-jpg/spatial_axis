@@ -42,9 +42,8 @@ def spatial_axis(
 
     validate_input(data, broad_annotations)
 
-    assert (
-        len(annotation_order) > 1
-    ), f"annotation_order length should be >1, got length {len(annotation_order)}"
+    if len(annotation_order) == 1:
+        log.warn(f"Annotation order is of length {len(annotation_order)}. Only the distance to the annotation will be calculated. spatial_axis is intended for >1 annotations.")
 
     if isinstance(data, geopandas.GeoDataFrame):
         assert (
@@ -297,6 +296,13 @@ def compute_relative_positioning(
     Returns:
         numpy.ndarray: Normalised distances across broad annotation classes.
     """
+
+    # Only a single class has been used, so just return the distance to this class.
+    if distances.shape[1] == 1:
+        distances = distances[..., 0]
+        # Min-max scale data
+        distances = (distances - distances.min()) / (distances.max() - distances.min())
+        return distances
 
     inter_class_distances = []
     # Iterate over .shape[1] (the columns), which corresponds to the number of
