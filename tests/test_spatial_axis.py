@@ -1,29 +1,17 @@
-import numpy
+from unittest.mock import patch
 
-from spatial_axis import spatial_axis
-from spatial_axis.data import toy_anndata
-
-import pytest
+import anndata
+import geopandas
 import numpy
 import pandas
-import geopandas
-import anndata
-from shapely.geometry import Point, Polygon
-from unittest.mock import patch, MagicMock
-import scipy.spatial
+import pytest
+from shapely.geometry import Polygon
 
-from spatial_axis.spatial_axis import (
-    spatial_axis, 
-    _get_centroids,
-    _get_centroid_class,
-    _spatial_axis,
-    get_centroid_distances,
-    get_shapely_centroid,
-    compute_relative_positioning,
-    get_label_centroids,
-    _class_exclusion
-)
+from spatial_axis import spatial_axis
 from spatial_axis.constants import SpatialAxisConstants
+from spatial_axis.data import toy_anndata
+from spatial_axis.spatial_axis import (_get_centroid_class, _get_centroids,
+                                       _spatial_axis, spatial_axis)
 
 
 def test_spatial_axis_anndata():
@@ -149,25 +137,22 @@ def test_spatial_axis_auxiliary_class():
 
     numpy.testing.assert_almost_equal(observed, expected)
 
+
 @pytest.fixture
 def sample_anndata():
     """Create a simple anndata object with spatial coordinates."""
     obs = pandas.DataFrame(index=[f"cell_{i}" for i in range(5)])
     var = pandas.DataFrame(index=[f"gene_{i}" for i in range(3)])
     X = numpy.random.rand(5, 3)
-    
+
     adata = anndata.AnnData(X=X, obs=obs, var=var)
-    adata.obsm[SpatialAxisConstants.spatial_key] = numpy.array([
-        [1.0, 1.0],
-        [2.0, 2.0],
-        [3.0, 3.0],
-        [4.0, 1.0],
-        [5.0, 5.0]
-    ])
-    
+    adata.obsm[SpatialAxisConstants.spatial_key] = numpy.array(
+        [[1.0, 1.0], [2.0, 2.0], [3.0, 3.0], [4.0, 1.0], [5.0, 5.0]]
+    )
+
     # Add an annotation column
-    adata.obs['annotation'] = pandas.Series([1, 1, 2, 2, 3], index=adata.obs.index)
-    
+    adata.obs["annotation"] = pandas.Series([1, 1, 2, 2, 3], index=adata.obs.index)
+
     return adata
 
 
@@ -177,7 +162,7 @@ def sample_gdf():
     geometry = [
         Polygon([(0, 0), (2, 0), (2, 2), (0, 2)]),
         Polygon([(2, 0), (4, 0), (4, 3), (2, 3)]),
-        Polygon([(4, 3), (6, 3), (6, 6), (4, 6)])
+        Polygon([(4, 3), (6, 3), (6, 6), (4, 6)]),
     ]
     return geopandas.GeoDataFrame(geometry=geometry, crs="EPSG:4326")
 
@@ -195,12 +180,7 @@ def broad_annotations_array():
 @pytest.fixture
 def sample_centroids():
     """Create centroids for testing."""
-    return numpy.array([
-        [1.0, 1.0],
-        [2.0, 2.0],
-        [3.0, 1.0],
-        [5.0, 5.0]
-    ])
+    return numpy.array([[1.0, 1.0], [2.0, 2.0], [3.0, 1.0], [5.0, 5.0]])
 
 
 @pytest.fixture
@@ -215,9 +195,9 @@ def test_spatial_axis_with_anndata_and_annotation_column(sample_anndata):
         data=sample_anndata,
         annotation_order=[1, 2, 3],
         k_neighbours=2,
-        annotation_column='annotation'
+        annotation_column="annotation",
     )
-    
+
     assert isinstance(result, numpy.ndarray)
     assert len(result) == 5  # One value per cell
 
@@ -228,9 +208,9 @@ def test_spatial_axis_with_gdf_and_broad_annotations(sample_gdf):
         data=sample_gdf,
         annotation_order=[0, 1, 2],
         k_neighbours=1,
-        broad_annotations=sample_gdf
+        broad_annotations=sample_gdf,
     )
-    
+
     assert isinstance(result, numpy.ndarray)
     assert len(result) == 3  # One value per polygon
 
@@ -238,17 +218,19 @@ def test_spatial_axis_with_gdf_and_broad_annotations(sample_gdf):
 def test_spatial_axis_with_missing_annotation_replace(sample_anndata):
     """Test handling missing annotations with replace method."""
     # Create test data with some NaN annotations
-    sample_anndata.obs['sparse_annotation'] = pandas.Series([1, numpy.nan, 2, numpy.nan, 3], index=sample_anndata.obs.index)
-    
+    sample_anndata.obs["sparse_annotation"] = pandas.Series(
+        [1, numpy.nan, 2, numpy.nan, 3], index=sample_anndata.obs.index
+    )
+
     result = spatial_axis(
         data=sample_anndata,
         annotation_order=[1, 2, 3],
         k_neighbours=2,
-        annotation_column='sparse_annotation',
-        missing_annotation_method='replace',
-        replace_value=0.5
+        annotation_column="sparse_annotation",
+        missing_annotation_method="replace",
+        replace_value=0.5,
     )
-    
+
     assert isinstance(result, numpy.ndarray)
     assert len(result) == 5
     assert not numpy.isnan(result).any()  # No NaN values after replacement
@@ -257,16 +239,18 @@ def test_spatial_axis_with_missing_annotation_replace(sample_anndata):
 def test_spatial_axis_with_missing_annotation_knn(sample_anndata):
     """Test handling missing annotations with KNN imputation."""
     # Create test data with some NaN annotations
-    sample_anndata.obs['sparse_annotation'] = pandas.Series([1, numpy.nan, 2, numpy.nan, 3], index=sample_anndata.obs.index)
-    
+    sample_anndata.obs["sparse_annotation"] = pandas.Series(
+        [1, numpy.nan, 2, numpy.nan, 3], index=sample_anndata.obs.index
+    )
+
     result = spatial_axis(
         data=sample_anndata,
         annotation_order=[1, 2, 3],
         k_neighbours=2,
-        annotation_column='sparse_annotation',
-        missing_annotation_method='knn'
+        annotation_column="sparse_annotation",
+        missing_annotation_method="knn",
     )
-    
+
     assert isinstance(result, numpy.ndarray)
     assert len(result) == 5
     assert not numpy.isnan(result).any()  # No NaN values after KNN imputation
@@ -278,15 +262,15 @@ def test_spatial_axis_with_class_exclusion(sample_anndata):
         data=sample_anndata,
         annotation_order=[1, 2, 3],
         k_neighbours=2,
-        annotation_column='annotation',
+        annotation_column="annotation",
         class_to_exclude=2,
-        exclusion_value=numpy.nan
+        exclusion_value=numpy.nan,
     )
-    
+
     assert isinstance(result, numpy.ndarray)
     assert len(result) == 5
     # Check that values for class 2 are excluded (set to NaN)
-    mask = sample_anndata.obs['annotation'] == 2
+    mask = sample_anndata.obs["annotation"] == 2
     assert numpy.isnan(result[mask.values]).all()
     assert not numpy.isnan(result[~mask.values]).any()
 
@@ -297,10 +281,10 @@ def test_spatial_axis_with_auxiliary_class(sample_anndata):
         data=sample_anndata,
         annotation_order=[1, 2],
         k_neighbours=2,
-        annotation_column='annotation',
-        auxiliary_class=3
+        annotation_column="annotation",
+        auxiliary_class=3,
     )
-    
+
     assert isinstance(result, numpy.ndarray)
     assert len(result) == 5
 
@@ -308,17 +292,22 @@ def test_spatial_axis_with_auxiliary_class(sample_anndata):
 def test_get_centroids_from_anndata(sample_anndata):
     """Test extracting centroids from AnnData."""
     centroids = _get_centroids(sample_anndata)
-    
+
     assert isinstance(centroids, numpy.ndarray)
     assert centroids.shape == (5, 2)
-    numpy.testing.assert_array_equal(centroids, sample_anndata.obsm[SpatialAxisConstants.spatial_key])
+    numpy.testing.assert_array_equal(
+        centroids, sample_anndata.obsm[SpatialAxisConstants.spatial_key]
+    )
 
 
 def test_get_centroids_from_gdf(sample_gdf):
     """Test extracting centroids from GeoDataFrame."""
-    with patch('spatial_axis.spatial_axis.get_shapely_centroid', side_effect=lambda x: numpy.array(x.centroid.coords[0])):
+    with patch(
+        "spatial_axis.spatial_axis.get_shapely_centroid",
+        side_effect=lambda x: numpy.array(x.centroid.coords[0]),
+    ):
         centroids = _get_centroids(sample_gdf)
-        
+
         assert isinstance(centroids, numpy.ndarray)
         assert centroids.shape == (3, 2)
 
@@ -333,29 +322,30 @@ def test_get_centroid_class_from_gdf():
     """Test getting centroid classes from GeoDataFrame."""
     # Create test points and polygons
     points = numpy.array([[1.0, 1.0], [3.0, 1.0], [5.0, 5.0]])
-    
+
     # Create mock polygons for broad annotations
     polygons = [
         Polygon([(0, 0), (2, 0), (2, 2), (0, 2)]),  # Class 0
         Polygon([(2, 0), (4, 0), (4, 3), (2, 3)]),  # Class 1
-        Polygon([(4, 3), (6, 3), (6, 6), (4, 6)])   # Class 2
+        Polygon([(4, 3), (6, 3), (6, 6), (4, 6)]),  # Class 2
     ]
-    
+
     broad_annotations = geopandas.GeoDataFrame(
-        {'class_id': [0, 1, 2]},
-        geometry=polygons,
-        crs="EPSG:4326"
+        {"class_id": [0, 1, 2]}, geometry=polygons, crs="EPSG:4326"
     )
-    
-    with patch('geopandas.sjoin') as mock_sjoin:
+
+    with patch("geopandas.sjoin") as mock_sjoin:
         # Mock the spatial join result
-        result_df = pandas.DataFrame({
-            'index_right': [0, 1, 2],
-        }, index=[0, 1, 2])
+        result_df = pandas.DataFrame(
+            {
+                "index_right": [0, 1, 2],
+            },
+            index=[0, 1, 2],
+        )
         mock_sjoin.return_value = result_df
-        
+
         centroid_class = _get_centroid_class(points, broad_annotations)
-        
+
         assert isinstance(centroid_class, numpy.ndarray)
         assert len(centroid_class) == 3
 
@@ -363,9 +353,9 @@ def test_get_centroid_class_from_gdf():
 def test_get_centroid_class_from_array(broad_annotations_array):
     """Test getting centroid classes from numpy array."""
     points = numpy.array([[1, 1], [3, 1], [5, 5]])
-    
+
     centroid_class = _get_centroid_class(points, broad_annotations_array)
-    
+
     assert isinstance(centroid_class, numpy.ndarray)
     assert len(centroid_class) == 3
     # Check if classes match the expected values based on the array regions
@@ -380,9 +370,9 @@ def test_spatial_axis_internal(sample_centroids, sample_centroid_class):
         centroids=sample_centroids,
         centroid_class=sample_centroid_class,
         class_order=[1, 2, 3],
-        k_neighbours=1
+        k_neighbours=1,
     )
-    
+
     assert isinstance(result, numpy.ndarray)
     assert result.shape == (4, 3)  # 4 centroids, 3 classes
 
@@ -394,9 +384,9 @@ def test_spatial_axis_with_auxiliary(sample_centroids, sample_centroid_class):
         centroid_class=sample_centroid_class,
         class_order=[1, 2],
         k_neighbours=1,
-        auxiliary_class=3
+        auxiliary_class=3,
     )
-    
+
     assert isinstance(result, numpy.ndarray)
     assert result.shape == (4, 2)  # 4 centroids, 2 classes
 
@@ -407,27 +397,27 @@ def test_spatial_axis_empty_class(sample_centroids, sample_centroid_class):
         centroids=sample_centroids,
         centroid_class=sample_centroid_class,
         class_order=[1, 2, 4],  # Class 4 doesn't exist
-        k_neighbours=1
+        k_neighbours=1,
     )
-    
+
     assert isinstance(result, numpy.ndarray)
     assert result.shape == (4, 3)
+
 
 def test_spatial_axis_weights(sample_anndata, sample_centroid_class):
     """Test _spatial_axis with an empty class."""
     result_none = spatial_axis(
         data=sample_anndata,
         annotation_order=[1, 2, 3],
-        annotation_column='annotation',
-        weights=None
+        annotation_column="annotation",
+        weights=None,
     )
 
     result_weights = spatial_axis(
         data=sample_anndata,
         annotation_order=[1, 2, 3],
-        annotation_column='annotation',
-        weights=[10, 10]
+        annotation_column="annotation",
+        weights=[10, 10],
     )
-    
-    numpy.testing.assert_almost_equal(result_weights, result_none * 10)
 
+    numpy.testing.assert_almost_equal(result_weights, result_none * 10)

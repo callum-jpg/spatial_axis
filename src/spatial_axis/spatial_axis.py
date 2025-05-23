@@ -1,3 +1,4 @@
+import logging
 import typing
 
 import anndata
@@ -6,12 +7,12 @@ import numpy
 import scipy
 import shapely
 import skimage
-import logging
 
 from .constants import SpatialAxisConstants
 from .validation import validate_input
 
 log = logging.getLogger(__name__)
+
 
 def spatial_axis(
     data: typing.Union[anndata.AnnData, geopandas.GeoDataFrame, numpy.ndarray],
@@ -44,7 +45,9 @@ def spatial_axis(
     validate_input(data, broad_annotations)
 
     if len(annotation_order) == 1:
-        log.warn(f"Annotation order is of length {len(annotation_order)}. Only the distance to the annotation will be calculated. spatial_axis is intended for >1 annotations.")
+        log.warn(
+            f"Annotation order is of length {len(annotation_order)}. Only the distance to the annotation will be calculated. spatial_axis is intended for >1 annotations."
+        )
 
     if isinstance(data, geopandas.GeoDataFrame):
         assert (
@@ -190,7 +193,9 @@ def _spatial_axis(
     if auxiliary_class is not None:
         auxiliary_centroids = centroids[numpy.where(centroid_class == auxiliary_class)]
         if len(auxiliary_centroids) == 0:
-            log.warning("No auxillary class centroids found. Calculating spatial_axis without auxiliary_class")
+            log.warning(
+                "No auxillary class centroids found. Calculating spatial_axis without auxiliary_class"
+            )
             auxiliary_class = None
 
     # Iterate over each broad annotation class and create a
@@ -306,8 +311,10 @@ def compute_relative_positioning(
         if isinstance(weights, list):
             weights = numpy.array(weights)
         assert weights.ndim == 1, "weights should be 1-dimensional."
-        assert len(weights) == distances.shape[1] - 1, f"weights should be the `num_annotations - 1` (got {distances.shape[1] - 1} annotations and {len(weights)} weights)."
-        
+        assert (
+            len(weights) == distances.shape[1] - 1
+        ), f"weights should be the `num_annotations - 1` (got {distances.shape[1] - 1} annotations and {len(weights)} weights)."
+
         _weights = _weights * weights[..., numpy.newaxis]
 
     # Only a single class has been used, so just return the distance to this class.
