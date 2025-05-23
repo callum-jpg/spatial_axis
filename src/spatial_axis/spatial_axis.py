@@ -270,6 +270,7 @@ def get_shapely_centroid(polygon: shapely.Polygon) -> numpy.ndarray:
 
 def compute_relative_positioning(
     distances: numpy.ndarray,
+    weights: numpy.ndarray | None = None,
     eps: float = 1e-6,
 ) -> numpy.ndarray:
     """
@@ -296,6 +297,15 @@ def compute_relative_positioning(
     Returns:
         numpy.ndarray: Normalised distances across broad annotation classes.
     """
+
+    # Weight matrix as n_class-1 x n_cells
+    _weights = numpy.ones((distances.shape[1] - 1, distances.shape[0]))
+
+    if weights is not None:
+        assert weights.ndim == 1, "weights should be 1-dimensional."
+        assert len(weights) == distances.shape[1] - 1, f"weights should be the number of annotations - 1 {(distances.shape[1] - 1)}. Got {len(weights)}."
+        
+        _weights = _weights * weights
 
     # Only a single class has been used, so just return the distance to this class.
     if distances.shape[1] == 1:
@@ -334,6 +344,9 @@ def compute_relative_positioning(
         inter_class_distances.append(relative_dist)
 
     inter_class_distances = numpy.array(inter_class_distances)
+
+    inter_class_distances = inter_class_distances * _weights
+
     inter_class_distances = numpy.nansum(inter_class_distances, axis=0)
 
     return inter_class_distances
