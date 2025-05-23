@@ -413,3 +413,21 @@ def test_spatial_axis_empty_class(sample_centroids, sample_centroid_class):
     assert isinstance(result, numpy.ndarray)
     assert result.shape == (4, 3)
 
+def test_spatial_axis_weights(sample_anndata, sample_centroid_class):
+    """Test _spatial_axis with an empty class."""
+    result_none = spatial_axis(
+        data=sample_anndata,
+        annotation_order=[1, 2, 3],
+        annotation_column='annotation',
+        weights=None
+    )
+
+    result_weights = spatial_axis(
+        data=sample_anndata,
+        annotation_order=[1, 2, 3],
+        annotation_column='annotation',
+        weights=[10, 10]
+    )
+    
+    numpy.testing.assert_almost_equal(result_weights, result_none * 10)
+

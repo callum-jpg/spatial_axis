@@ -25,6 +25,7 @@ def spatial_axis(
         typing.Optional[typing.Union[int, typing.List[int]]] | None
     ) = None,
     auxiliary_class: str = None,
+    weights: numpy.ndarray | list[float] | None = None,
     exclusion_value: typing.Optional[typing.Union[int, float, numpy.nan]] = numpy.nan,
     # broad_annotation_weights, # TODO: add this
 ) -> numpy.ndarray:
@@ -92,7 +93,7 @@ def spatial_axis(
             imputer = KNNImputer(n_neighbors=k_neighbours)
             all_dist = imputer.fit_transform(all_dist)
 
-    relative_distance = compute_relative_positioning(all_dist)
+    relative_distance = compute_relative_positioning(all_dist, weights=weights)
 
     if class_to_exclude is not None:
         relative_distance = _class_exclusion(
@@ -302,10 +303,12 @@ def compute_relative_positioning(
     _weights = numpy.ones((distances.shape[1] - 1, distances.shape[0]))
 
     if weights is not None:
+        if isinstance(weights, list):
+            weights = numpy.array(weights)
         assert weights.ndim == 1, "weights should be 1-dimensional."
-        assert len(weights) == distances.shape[1] - 1, f"weights should be the number of annotations - 1 {(distances.shape[1] - 1)}. Got {len(weights)}."
+        assert len(weights) == distances.shape[1] - 1, f"weights should be the `num_annotations - 1` (got {distances.shape[1] - 1} annotations and {len(weights)} weights)."
         
-        _weights = _weights * weights
+        _weights = _weights * weights[..., numpy.newaxis]
 
     # Only a single class has been used, so just return the distance to this class.
     if distances.shape[1] == 1:
