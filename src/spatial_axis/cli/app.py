@@ -6,9 +6,12 @@ import typer
 from InquirerPy import inquirer
 
 from spatial_axis import spatial_axis
+from spatial_axis.data import subset_dataframe
 
 from ._search import search
 import logging
+
+import numpy
 
 # from spatial_axis.validation import validate_spatial_axis_config
 
@@ -44,6 +47,8 @@ def calculate(config_file: str):
 
     batch_id = config.get("batch_id_column")
 
+    subset_filter = config.get("subset_filter", None)
+
     if data_path.suffix == ".zarr":
         # SpatialData
         import spatialdata
@@ -58,15 +63,30 @@ def calculate(config_file: str):
             f"Cannot determine a reader for {data_path.suffix}. Expected a .zarr or .h5ad file."
         )
 
-    if batch_id is not None:
-        batched_data = data.obs.groupby(batch_id).indices.items()
-        import numpy
+    if subset_filter is not None:
+        # Subset the DataFrame
+        # Since data is an AnnData object, find indices from the obs.
+        subset_idx = subset_dataframe(data.obs, subset_filter = subset_filter).index
+        log.info(f"Subsetting input data. Subset is {round((len(subset_idx) / len(data.obs.index)), 3) * 100}% of original dataset.")
+    else:
+        subset_idx = slice(None)
 
-        spatial_data = numpy.zeros(len(data))
+
+    if batch_id is not None:
+        # Find the indices for batches of data
+        # Optionally, subset the data first
+        batched_data = data[subset_idx].obs.groupby(batch_id).indices.items()
+
+        # Create an empty array to store spatial_axis values
+        spatial_data = numpy.empty(len(data))
+        spatial_data[:] = numpy.nan
+
         for batch_key, batch_idx in batched_data:
             log.info(f"Computing spatial_axis for: {batch_key}")
             # Calculate spatial axis for the batch
             sp_ax = spatial_axis(
+                # batch_idx was found for the subset_idx, if requested
+                # so we can use these idx to subset the original DF
                 data=data[batch_idx],
                 annotation_order=config.get("annotation_order"),
                 k_neighbours=config.get("k_neighbours"),
@@ -102,6 +122,8 @@ def calculate(config_file: str):
     log.info(f"Saving {save_path}")
 
     if data_path.suffix == ".zarr":
+        # We have modified the SpatialData in place, 
+        # so we can save as is.
         sdata.write(save_path, overwrite=True)
 
     elif data_path.suffix == ".h5ad":
