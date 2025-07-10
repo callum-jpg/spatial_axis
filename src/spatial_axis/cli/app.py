@@ -80,6 +80,8 @@ def calculate(config_file: str):
         # Create an empty array to store spatial_axis values
         spatial_data = numpy.empty(len(data))
         spatial_data[:] = numpy.nan
+        
+        assert added_spatial_axis_key not in data.obs.columns, f"save_column {added_spatial_axis_key} found in adata.obs. Exiting."
 
         for batch_key, batch_idx in batched_data:
             log.info(f"Computing spatial_axis for: {batch_key}")
@@ -100,6 +102,7 @@ def calculate(config_file: str):
             )
 
             spatial_data[batch_idx] = sp_ax
+
 
         data.obs[added_spatial_axis_key] = spatial_data
 
@@ -122,9 +125,19 @@ def calculate(config_file: str):
     log.info(f"Saving {save_path}")
 
     if data_path.suffix == ".zarr":
-        # We have modified the SpatialData in place, 
-        # so we can save as is.
-        sdata.write(save_path, overwrite=True)
+        if str(save_path) == str(data_path):
+            # From: https://github.com/scverse/spatialdata/blob/main/tests/io/test_readwrite.py
+            # Write element to existing store
+            sdata["table_new"] = sdata["table"]
+            sdata.write_element("table_new")
+            sdata.delete_element_from_disk("table")
+            sdata.write_element("table")
+            del sdata["table_new"]
+            sdata.delete_element_from_disk("table_new")
+        else:
+            # We have modified the SpatialData in place, 
+            # so we can save as is.
+            sdata.write(save_path, overwrite=True)
 
     elif data_path.suffix == ".h5ad":
         data.write_h5ad(save_path)
