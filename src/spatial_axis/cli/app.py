@@ -69,11 +69,11 @@ def calculate(config_file: str):
     if subset_filter is not None:
         # Subset the DataFrame
         # Since data is an AnnData object, find indices from the obs.
-        subset_idx = subset_dataframe(data.obs, subset_filter = subset_filter).index
+        subset_idx = subset_dataframe(data.obs, subset_filter = subset_filter).index.astype(int)
         log.info(f"Subsetting input data. Subset is {round((len(subset_idx) / len(data.obs.index)), 3) * 100}% of original dataset.")
     else:
+        # TODO: this doesn't work if batched. Ensure XOR
         subset_idx = slice(None)
-
 
     if batch_id is not None:
         # Find the indices for batches of data
@@ -88,11 +88,15 @@ def calculate(config_file: str):
 
         for batch_key, batch_idx in batched_data:
             log.info(f"Computing spatial_axis for: {batch_key}")
+            # Convert batch_idx (which are positions in the subset) 
+            # back to original data indices
+            original_indices = numpy.array(subset_idx[batch_idx])
+
             # Calculate spatial axis for the batch
             sp_ax = spatial_axis(
                 # batch_idx was found for the subset_idx, if requested
                 # so we can use these idx to subset the original DF
-                data=data[batch_idx],
+                data=data[original_indices],
                 annotation_order=config.get("annotation_order"),
                 k_neighbours=config.get("k_neighbours"),
                 annotation_column=config.get("annotation_column"),
@@ -104,8 +108,7 @@ def calculate(config_file: str):
                 auxiliary_class=config.get("auxiliary_class"),
             )
 
-            spatial_data[batch_idx] = sp_ax
-
+            spatial_data[original_indices] = sp_ax
 
         data.obs[added_spatial_axis_key] = spatial_data
 
@@ -137,7 +140,7 @@ def calculate(config_file: str):
             sdata.write_element("table")
             del sdata["table_new"]
             sdata.delete_element_from_disk("table_new")
-        else:
+        else: 
             # We have modified the SpatialData in place, 
             # so we can save as is.
             sdata.write(save_path, overwrite=True)
