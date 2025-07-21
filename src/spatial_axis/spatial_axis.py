@@ -46,7 +46,7 @@ def spatial_axis(
 
     if len(annotation_order) == 1:
         log.warn(
-            f"Annotation order is of length {len(annotation_order)}. Only the distance to the annotation will be calculated. spatial_axis is intended for >1 annotations."
+            f"Annotation order is of length {len(annotation_order)}. Only the distance to the annotation will be calculated."
         )
 
     if isinstance(data, geopandas.GeoDataFrame):
@@ -70,6 +70,8 @@ def spatial_axis(
     elif annotation_column is not None:
         # Directly load centroid class from anndata
         centroid_class = data.obs[annotation_column].to_numpy()
+
+    assert len(list(set(annotation_order).intersection(set(centroid_class)))) > 0, "No elements of annotation_order were found in cell classes."
 
     assert (
         centroid_class is not None
