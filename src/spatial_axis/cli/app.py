@@ -106,6 +106,7 @@ def calculate(config_file: str):
                 class_to_exclude=config.get("class_to_exclude"),
                 exclusion_value=config.get("exclusion_value"),
                 auxiliary_class=config.get("auxiliary_class"),
+                normalise=config.get("normalise", True),
             )
 
             spatial_data[original_indices] = sp_ax
@@ -125,6 +126,7 @@ def calculate(config_file: str):
             class_to_exclude=config.get("class_to_exclude"),
             exclusion_value=config.get("exclusion_value"),
             auxiliary_class=config.get("auxiliary_class"),
+            normalise=config.get("normalise", True),
         )
         data.obs[added_spatial_axis_key] = sp_ax
         

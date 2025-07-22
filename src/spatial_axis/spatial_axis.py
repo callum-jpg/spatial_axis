@@ -28,6 +28,7 @@ def spatial_axis(
     auxiliary_class: str = None,
     weights: numpy.ndarray | list[float] | None = None,
     exclusion_value: typing.Optional[typing.Union[int, float, numpy.nan]] = numpy.nan,
+    normalise: bool = True,
     # broad_annotation_weights, # TODO: add this
 ) -> numpy.ndarray:
     """Find the relative positioning of uniquely labelled objects across
@@ -98,7 +99,7 @@ def spatial_axis(
             imputer = KNNImputer(n_neighbors=k_neighbours)
             all_dist = imputer.fit_transform(all_dist)
 
-    relative_distance = compute_relative_positioning(all_dist, weights=weights)
+    relative_distance = compute_relative_positioning(all_dist, weights=weights, normalise=normalise)
 
     if class_to_exclude is not None:
         relative_distance = _class_exclusion(
@@ -280,6 +281,7 @@ def compute_relative_positioning(
     distances: numpy.ndarray,
     weights: numpy.ndarray | None = None,
     eps: float = 1e-6,
+    normalise: bool = False,
 ) -> numpy.ndarray:
     """
     This function is intended to normalize the distances between N number of
@@ -301,6 +303,8 @@ def compute_relative_positioning(
     Args:
         distances (numpy.ndarray): Distances computed with cKDTree for each cell
         across all broad annotations
+        normalise (bool): If True and n_classes == 1, min-max normalise. Otherwise, 
+            don't.
 
     Returns:
         numpy.ndarray: Normalised distances across broad annotation classes.
@@ -321,9 +325,11 @@ def compute_relative_positioning(
 
     # Only a single class has been used, so just return the distance to this class.
     if distances.shape[1] == 1:
+        log.info(f"Only a single discrete annotation was provided, so the euclidean distance this annotation will be returned.")
         distances = distances[..., 0]
-        # Min-max scale data
-        distances = (distances - distances.min()) / (distances.max() - distances.min())
+        if normalise:
+            # Min-max scale data
+            distances = (distances - distances.min()) / (distances.max() - distances.min())
         return distances
 
     inter_class_distances = []
