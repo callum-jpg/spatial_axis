@@ -325,11 +325,12 @@ def compute_relative_positioning(
 
     # Only a single class has been used, so just return the distance to this class.
     if distances.shape[1] == 1:
-        log.info(f"Only a single discrete annotation was provided, so the euclidean distance this annotation will be returned.")
         distances = distances[..., 0]
         if normalise:
             # Min-max scale data
             distances = (distances - distances.min()) / (distances.max() - distances.min())
+        else:
+            log.info(f"Only a single discrete annotation was provided, so the euclidean distance this annotation will be returned.")
         return distances
 
     inter_class_distances = []
