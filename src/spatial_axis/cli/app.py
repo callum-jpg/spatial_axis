@@ -54,8 +54,7 @@ def calculate(config_file: str):
         import spatialdata
 
         sdata = spatialdata.read_zarr(
-            data_path,
-            selection = ["tables", "table"]
+            data_path
             )
         data = sdata.tables["table"]
     elif data_path.suffix == ".h5ad":
