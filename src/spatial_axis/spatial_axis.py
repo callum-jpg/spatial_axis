@@ -10,6 +10,7 @@ import skimage
 
 from .constants import SpatialAxisConstants
 from .validation import validate_input
+from .preprocessing import spatial_celltype_filter
 
 log = logging.getLogger(__name__)
 
@@ -29,6 +30,8 @@ def spatial_axis(
     weights: numpy.ndarray | list[float] | None = None,
     exclusion_value: typing.Optional[typing.Union[int, float, numpy.nan]] = numpy.nan,
     normalise: bool = True,
+    reference_cell_type: str = None,
+    distance_threshold: float = None,
     # broad_annotation_weights, # TODO: add this
 ) -> numpy.ndarray:
     """Find the relative positioning of uniquely labelled objects across
@@ -69,6 +72,17 @@ def spatial_axis(
         # each broad annotation and assign this as the centroid class
         centroid_class = _get_centroid_class(centroids, broad_annotations)
     elif annotation_column is not None:
+        if reference_cell_type is not None or distance_threshold is not None:
+            assert len(annotation_order) == 1, f"Cell filtering only supports annotation_order of len 1. Got {len(annotation_order)}"
+            
+            annotation_column = spatial_celltype_filter(
+                adata=data,
+                celltype_col=annotation_column,
+                query_cell=annotation_order[0],
+                reference_cell = reference_cell_type or annotation_order[0],
+                new_celltype = annotation_order[0],
+                distance_threshold = distance_threshold,
+            )
         # Directly load centroid class from anndata
         centroid_class = data.obs[annotation_column].to_numpy()
 

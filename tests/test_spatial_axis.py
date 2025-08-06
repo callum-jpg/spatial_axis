@@ -142,16 +142,17 @@ def test_spatial_axis_auxiliary_class():
 def sample_anndata():
     """Create a simple anndata object with spatial coordinates."""
     obs = pandas.DataFrame(index=[f"cell_{i}" for i in range(5)])
+    obs = numpy.roll(obs, -1, axis=0)
     var = pandas.DataFrame(index=[f"gene_{i}" for i in range(3)])
     X = numpy.random.rand(5, 3)
 
     adata = anndata.AnnData(X=X, obs=obs, var=var)
     adata.obsm[SpatialAxisConstants.spatial_key] = numpy.array(
-        [[1.0, 1.0], [2.0, 2.0], [3.0, 3.0], [4.0, 1.0], [5.0, 5.0]]
+        [[1.0, 1.0], [2.0, 2.0], [3.0, 3.0], [4.0, 4.0], [5.0, 5.0]]
     )
 
     # Add an annotation column
-    adata.obs["annotation"] = pandas.Series([1, 1, 2, 2, 3], index=adata.obs.index)
+    adata.obs["annotation"] = pandas.Series([3, 1, 2, 2, 1], index=adata.obs.index)
 
     return adata
 
@@ -421,3 +422,38 @@ def test_spatial_axis_weights(sample_anndata, sample_centroid_class):
     )
 
     numpy.testing.assert_almost_equal(result_weights, result_none * 10)
+
+def test_spatial_axis_filter(sample_anndata, sample_centroid_class):
+    """
+    We have two cells annotated with class 1 at (X, Y)
+    (2, 2) and (5, 5). The euclidean distance between these
+    two points is ~4.2.
+    """
+    pass_distance = 4.3
+    fail_distance = 4.1
+
+    # Should fail
+    with pytest.raises(AssertionError):
+        spatial_axis(
+            data=sample_anndata,
+            annotation_order=[1],
+            annotation_column="annotation",
+            reference_cell_type = None,
+            distance_threshold = fail_distance
+        )
+
+    # Should pass
+    result = spatial_axis(
+        data=sample_anndata,
+        annotation_order=[1],
+        annotation_column="annotation",
+        reference_cell_type = None,
+        distance_threshold = pass_distance
+    )
+
+    numpy.testing.assert_almost_equal(
+        result, 
+        [1, 0, 3.14e-16, 3.14e-16, 0]
+
+    )
+
