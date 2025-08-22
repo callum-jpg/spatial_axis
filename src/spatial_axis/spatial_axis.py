@@ -34,16 +34,99 @@ def spatial_axis(
     distance_threshold: float = None,
     # broad_annotation_weights, # TODO: add this
 ) -> numpy.ndarray:
-    """Find the relative positioning of uniquely labelled objects across
-    broad annotations with a specific order.
+    """Calculate relative positioning of cells along a spatial axis.
 
-    This enables the consideration of individual cells within the wider context
-    of anatomical tissue.
+    This function defines the relative positioning of uniquely labeled objects 
+    across broad anatomical annotations with a specific order, enabling analysis 
+    of individual cells within the wider context of tissue anatomy.
 
-    For example, broad annotations may include the cortex
-    and medulla. It's useful to know that if a cell exists in the medulla region
-    of the tissue, is it closer or further away from the cortex than other
-    cells? ie. what is it's relative positioning?
+    Parameters
+    ----------
+    data : Union[anndata.AnnData, geopandas.GeoDataFrame, numpy.ndarray]
+        Cell data containing spatial information. Can be:
+        - AnnData object with spatial coordinates
+        - GeoDataFrame with cell geometries
+        - NumPy array with coordinates
+    annotation_order : List[int]
+        List defining the order of annotations along the spatial axis.
+        For example, [0, 1, 2, 3, 4] defines progression from annotation 0 to 4.
+    k_neighbours : int, default=5
+        Number of nearest neighbors to consider for spatial smoothing.
+    annotation_column : str, optional
+        Column name in AnnData.obs containing annotation labels.
+        Required if using AnnData without broad_annotations.
+    broad_annotations : Union[geopandas.GeoDataFrame, numpy.ndarray], optional
+        Anatomical annotation data. Can be:
+        - GeoDataFrame with annotation polygons
+        - NumPy array with annotation labels
+    missing_annotation_method : {"replace", "knn", None}, optional
+        Method to handle cells without annotation assignments:
+        - "replace": Replace with replace_value
+        - "knn": Use k-nearest neighbors
+        - None: Exclude from analysis
+    replace_value : int, default=1
+        Value to use when missing_annotation_method="replace".
+    class_to_exclude : Union[int, List[int]], optional
+        Annotation class(es) to exclude from analysis.
+    auxiliary_class : str, optional
+        Additional cell type column for filtering.
+    weights : Union[numpy.ndarray, list[float]], optional
+        Custom weights for each annotation in annotation_order.
+    exclusion_value : Union[int, float, numpy.nan], default=numpy.nan
+        Value assigned to excluded cells.
+    normalise : bool, default=True
+        Whether to normalize the spatial axis values.
+    reference_cell_type : str, optional
+        Reference cell type for spatial filtering.
+    distance_threshold : float, optional
+        Distance threshold for spatial filtering.
+
+    Returns
+    -------
+    numpy.ndarray
+        Array of spatial axis values for each cell, indicating relative 
+        position along the defined axis. Values closer to -1 indicate 
+        proximity to early annotations in the order, while values closer 
+        to +1 indicate proximity to later annotations.
+
+    Examples
+    --------
+    Calculate spatial axis for cells with anatomical annotations:
+
+    >>> import geopandas as gpd
+    >>> import numpy as np
+    >>> from spatial_axis import spatial_axis
+    >>> 
+    >>> # Create example data
+    >>> cells = gpd.GeoDataFrame(...)  # Cell geometries
+    >>> annotations = gpd.GeoDataFrame(...)  # Anatomical regions
+    >>> annotation_order = [0, 1, 2, 3, 4]  # Cortex to medulla progression
+    >>> 
+    >>> # Calculate spatial axis
+    >>> spatial_values = spatial_axis(
+    ...     cells, annotation_order, 
+    ...     broad_annotations=annotations,
+    ...     k_neighbours=5
+    ... )
+
+    Using AnnData with annotation column:
+
+    >>> import anndata as ad
+    >>> adata = ad.read_h5ad("spatial_data.h5ad")
+    >>> spatial_values = spatial_axis(
+    ...     adata, [0, 1, 2], 
+    ...     annotation_column="region_id",
+    ...     k_neighbours=10
+    ... )
+
+    Notes
+    -----
+    For single annotation (len(annotation_order) == 1), only distance 
+    to that annotation is calculated rather than relative positioning.
+
+    The spatial axis represents a continuous measure of position along 
+    anatomical gradients, useful for studying developmental processes, 
+    tissue organization, and spatial gene expression patterns.
     """
 
     validate_input(data, broad_annotations)
