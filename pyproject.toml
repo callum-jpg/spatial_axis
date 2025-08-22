@@ -51,4 +51,4 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["black", "isort", "ruff"]
-test = ["coverage"]
+test = ["pytest"]
