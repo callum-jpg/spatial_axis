@@ -7,11 +7,30 @@ spatial_axis = "spatial_axis.main:app"
 
 [project]
 name = "spatial_axis"
-version = "0.0"
+version = "0.1.0"
 description = "Define relative positioning of cells along a spatial axis"
 readme = "README.md"
 requires-python = ">=3.8"
-license = { file = "LICENSE.txt" }
+license = { file = "LICENSE" }
+authors = [
+]
+maintainers = [
+]
+keywords = ["spatial-biology", "cell-analysis", "spatial-axis", "bioinformatics"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Scientific/Engineering :: Image Processing",
+]
 
 # This field lists other packages that your project depends on to run.
 # Any package you put here will be installed by pip when your project is
@@ -23,9 +42,11 @@ dependencies = [
     "numpy",
     "scikit-image",
     "scipy",
-    "geopanads", 
+    "geopandas", 
     "shapely",
     "rasterio",
+    "anndata",
+    "pandas",
     ]
 
 [project.optional-dependencies]
