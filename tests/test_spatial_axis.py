@@ -142,7 +142,6 @@ def test_spatial_axis_auxiliary_class():
 def sample_anndata():
     """Create a simple anndata object with spatial coordinates."""
     obs = pandas.DataFrame(index=[f"cell_{i}" for i in range(5)])
-    obs = numpy.roll(obs, -1, axis=0)
     var = pandas.DataFrame(index=[f"gene_{i}" for i in range(3)])
     X = numpy.random.rand(5, 3)
 
