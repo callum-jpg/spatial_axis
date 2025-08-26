@@ -14,7 +14,7 @@ The package allows you to:
 
 ## Installation from source
 ```bash
-git clone https://github.com/yourusername/spatial_axis.git
+git clone https://github.com/callum-jpg/spatial_axis.git
 cd spatial_axis
 pip install -e .
 ```
@@ -174,7 +174,7 @@ cells['spatial_axis'] = spatial_axis(
 ### Development Setup
 
 ```bash
-git clone https://github.com/yourusername/spatial_axis.git
+git clone https://github.com/callum-jpg/spatial_axis.git
 cd spatial_axis
 pip install -e ".[dev,test]"
 ```
