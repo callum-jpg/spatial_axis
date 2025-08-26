@@ -41,6 +41,7 @@ classifiers = [
 dependencies = [
     "numpy",
     "scikit-image",
+    "scikit-learn",
     "scipy",
     "geopandas", 
     "shapely",
