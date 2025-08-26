@@ -22,15 +22,14 @@ pip install -e .
 ## Quick Start
 
 ```python
-import numpy as np
-import geopandas as gpd
+import geopandas
 from spatial_axis import spatial_axis
 
 # Create example cell data
-cells = gpd.GeoDataFrame(...)  # Your cell geometries
+cells = geopandas.GeoDataFrame(...)  # Your cell geometries
 
 # Define anatomical annotations
-annotations = gpd.GeoDataFrame(...)  # Your anatomical regions
+annotations = geopandas.GeoDataFrame(...)  # Your anatomical regions
 
 # Calculate spatial axis
 annotation_order = [0, 1, 2, 3, 4]  # Order along the axis
@@ -67,13 +66,13 @@ cells['spatial_axis'] = spatial_axis(
 ```python
 from spatial_axis import spatial_axis
 from spatial_axis.utility import random_shapely_circles, create_broad_annotation_polygons
-import geopandas as gpd
-import numpy as np
+import geopandas
+import numpy
 
 # Generate example data
 IMG_SHAPE = (256, 256)
 cells = random_shapely_circles(IMG_SHAPE, num_circles=200, seed=42)
-cells_gdf = gpd.GeoDataFrame(geometry=cells)
+cells_gdf = geopandas.GeoDataFrame(geometry=cells)
 
 # Create anatomical annotations
 annotations = create_broad_annotation_polygons(
@@ -81,10 +80,10 @@ annotations = create_broad_annotation_polygons(
     annotation_shape="circle", 
     num_levels=5
 )
-annotations_gdf = gpd.GeoDataFrame(geometry=annotations)
+annotations_gdf = geopandas.GeoDataFrame(geometry=annotations)
 
 # Calculate spatial axis
-annotation_order = np.arange(5)
+annotation_order = numpy.arange(5)
 cells_gdf['spatial_axis'] = spatial_axis(
     cells_gdf, 
     annotations_gdf, 
@@ -115,10 +114,10 @@ cells_gdf['spatial_axis'] = spatial_axis(
 ### Integration with AnnData
 
 ```python
-import anndata as ad
+import anndata
 
 # Load your spatial data
-adata = ad.read_h5ad("spatial_data.h5ad")
+adata = anndata.read_h5ad("spatial_data.h5ad")
 
 # Calculate spatial axis
 adata.obs['spatial_axis'] = spatial_axis(
@@ -128,8 +127,6 @@ adata.obs['spatial_axis'] = spatial_axis(
     annotation_column='region_id'
 )
 ```
-
-## API Reference
 
 ## Advanced Usage
 
@@ -169,28 +166,4 @@ cells['spatial_axis'] = spatial_axis(
     missing_annotation_method="knn",  # Use k-nearest neighbors
     k_neighbours=10
 )
-```
-
-### Development Setup
-
-```bash
-git clone https://github.com/callum-jpg/spatial_axis.git
-cd spatial_axis
-pip install -e ".[dev,test]"
-```
-
-### Running Tests
-
-```bash
-pytest tests/
-```
-
-### Code Style
-
-We use `black`, `isort`, and `ruff` for code formatting:
-
-```bash
-black src/
-isort src/
-ruff check src/
 ```
