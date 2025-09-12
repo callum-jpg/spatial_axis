@@ -108,6 +108,7 @@ def calculate(config_file: str):
                 normalise=config.get("normalise", True),
                 reference_cell_type=config.get("reference_cell_type", None),
                 distance_threshold=config.get("distance_threshold", None),
+                scaling_factor=config.get("scaling_factor", None),
             )
 
             spatial_data[original_indices] = sp_ax

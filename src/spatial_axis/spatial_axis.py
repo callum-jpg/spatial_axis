@@ -32,6 +32,8 @@ def spatial_axis(
     normalise: bool = True,
     reference_cell_type: str = None,
     distance_threshold: float = None,
+    scaling_factor: float = None,
+    min_counts: int = 50,
     # broad_annotation_weights, # TODO: add this
 ) -> numpy.ndarray:
     """Calculate relative positioning of cells along a spatial axis.
@@ -143,12 +145,20 @@ def spatial_axis(
     broad_annotations GeoDataFrame or an annotation column ID
     """
 
+    if isinstance(data, anndata.AnnData):
+        import scanpy
+        log.info(f"Filtering cells with less than {min_counts} transcripts.")
+        scanpy.pp.filter_cells(data, min_counts=min_counts)
+
     if broad_annotations is not None and annotation_column is not None:
         raise ValueError(
             "Got values for both broad_annotations and annotation_column. Provide only one."
         )
 
     centroids = _get_centroids(data)
+
+    if scaling_factor is not None:
+        centroids = centroids * scaling_factor
 
     if broad_annotations is not None:
         # Broad annotations are provided. Find which centroids are inside
