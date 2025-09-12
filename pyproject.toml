@@ -48,6 +48,7 @@ dependencies = [
     "rasterio",
     "anndata",
     "pandas",
+    "scanpy",
     ]
 
 [project.optional-dependencies]
