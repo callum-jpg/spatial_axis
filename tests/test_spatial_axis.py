@@ -380,7 +380,6 @@ def test_spatial_axis_internal(sample_centroids, sample_centroid_class):
         centroid_class=sample_centroid_class,
         class_order=[1, 2, 3],
         k_neighbours=1,
-        min_counts=0,
     )
 
     assert isinstance(result, numpy.ndarray)
@@ -395,7 +394,6 @@ def test_spatial_axis_with_auxiliary(sample_centroids, sample_centroid_class):
         class_order=[1, 2],
         k_neighbours=1,
         auxiliary_class=3,
-        min_counts=0,
     )
 
     assert isinstance(result, numpy.ndarray)
@@ -409,7 +407,6 @@ def test_spatial_axis_empty_class(sample_centroids, sample_centroid_class):
         centroid_class=sample_centroid_class,
         class_order=[1, 2, 4],  # Class 4 doesn't exist
         k_neighbours=1,
-        min_counts=0,
     )
 
     assert isinstance(result, numpy.ndarray)
