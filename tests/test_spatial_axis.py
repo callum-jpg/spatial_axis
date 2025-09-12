@@ -70,6 +70,7 @@ def test_spatial_axis_anndata_replace():
         annotation_order=[0, 1],
         missing_annotation_method="replace",
         k_neighbours=1,
+        min_counts=0,
     )
 
     expected = numpy.array([-1, -1, 1, 1])
@@ -84,6 +85,7 @@ def test_spatial_axis_anndata_replace():
         missing_annotation_method="replace",
         replace_value=0,
         k_neighbours=1,
+        min_counts=0,
     )
 
     expected = numpy.array([0, 0, 1, 1])
@@ -103,6 +105,7 @@ def test_spatial_axis_auxiliary_class():
         annotation_order=[0, 1],
         auxiliary_class=2,
         k_neighbours=1,
+        min_counts=0,
     )
 
     """Explanation of expected:
@@ -196,6 +199,7 @@ def test_spatial_axis_with_anndata_and_annotation_column(sample_anndata):
         annotation_order=[1, 2, 3],
         k_neighbours=2,
         annotation_column="annotation",
+        min_counts=0,
     )
 
     assert isinstance(result, numpy.ndarray)
@@ -209,6 +213,7 @@ def test_spatial_axis_with_gdf_and_broad_annotations(sample_gdf):
         annotation_order=[0, 1, 2],
         k_neighbours=1,
         broad_annotations=sample_gdf,
+        min_counts=0,
     )
 
     assert isinstance(result, numpy.ndarray)
@@ -229,6 +234,7 @@ def test_spatial_axis_with_missing_annotation_replace(sample_anndata):
         annotation_column="sparse_annotation",
         missing_annotation_method="replace",
         replace_value=0.5,
+        min_counts=0,
     )
 
     assert isinstance(result, numpy.ndarray)
@@ -249,6 +255,7 @@ def test_spatial_axis_with_missing_annotation_knn(sample_anndata):
         k_neighbours=2,
         annotation_column="sparse_annotation",
         missing_annotation_method="knn",
+        min_counts=0,
     )
 
     assert isinstance(result, numpy.ndarray)
@@ -265,6 +272,7 @@ def test_spatial_axis_with_class_exclusion(sample_anndata):
         annotation_column="annotation",
         class_to_exclude=2,
         exclusion_value=numpy.nan,
+        min_counts=0,
     )
 
     assert isinstance(result, numpy.ndarray)
@@ -283,6 +291,7 @@ def test_spatial_axis_with_auxiliary_class(sample_anndata):
         k_neighbours=2,
         annotation_column="annotation",
         auxiliary_class=3,
+        min_counts=0,
     )
 
     assert isinstance(result, numpy.ndarray)
@@ -371,6 +380,7 @@ def test_spatial_axis_internal(sample_centroids, sample_centroid_class):
         centroid_class=sample_centroid_class,
         class_order=[1, 2, 3],
         k_neighbours=1,
+        min_counts=0,
     )
 
     assert isinstance(result, numpy.ndarray)
@@ -385,6 +395,7 @@ def test_spatial_axis_with_auxiliary(sample_centroids, sample_centroid_class):
         class_order=[1, 2],
         k_neighbours=1,
         auxiliary_class=3,
+        min_counts=0,
     )
 
     assert isinstance(result, numpy.ndarray)
@@ -398,6 +409,7 @@ def test_spatial_axis_empty_class(sample_centroids, sample_centroid_class):
         centroid_class=sample_centroid_class,
         class_order=[1, 2, 4],  # Class 4 doesn't exist
         k_neighbours=1,
+        min_counts=0,
     )
 
     assert isinstance(result, numpy.ndarray)
@@ -411,6 +423,7 @@ def test_spatial_axis_weights(sample_anndata, sample_centroid_class):
         annotation_order=[1, 2, 3],
         annotation_column="annotation",
         weights=None,
+        min_counts=0,
     )
 
     result_weights = spatial_axis(
@@ -418,6 +431,7 @@ def test_spatial_axis_weights(sample_anndata, sample_centroid_class):
         annotation_order=[1, 2, 3],
         annotation_column="annotation",
         weights=[10, 10],
+        min_counts=0,
     )
 
     numpy.testing.assert_almost_equal(result_weights, result_none * 10)
@@ -438,7 +452,8 @@ def test_spatial_axis_filter(sample_anndata, sample_centroid_class):
             annotation_order=[1],
             annotation_column="annotation",
             reference_cell_type = None,
-            distance_threshold = fail_distance
+            distance_threshold = fail_distance,
+            min_counts=0,
         )
 
     # Should pass
@@ -447,7 +462,8 @@ def test_spatial_axis_filter(sample_anndata, sample_centroid_class):
         annotation_order=[1],
         annotation_column="annotation",
         reference_cell_type = None,
-        distance_threshold = pass_distance
+        distance_threshold = pass_distance,
+        min_counts=0,
     )
 
     numpy.testing.assert_almost_equal(
