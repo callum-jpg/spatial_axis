@@ -145,7 +145,7 @@ def spatial_axis(
     broad_annotations GeoDataFrame or an annotation column ID
     """
 
-    if isinstance(data, anndata.AnnData):
+    if isinstance(data, anndata.AnnData) and min_counts is not None:
         import scanpy
         log.info(f"Filtering cells with less than {min_counts} transcripts.")
         scanpy.pp.filter_cells(data, min_counts=min_counts)

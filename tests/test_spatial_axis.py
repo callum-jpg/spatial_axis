@@ -70,7 +70,7 @@ def test_spatial_axis_anndata_replace():
         annotation_order=[0, 1],
         missing_annotation_method="replace",
         k_neighbours=1,
-        min_counts=0,
+        min_counts=None,
     )
 
     expected = numpy.array([-1, -1, 1, 1])
@@ -105,7 +105,7 @@ def test_spatial_axis_auxiliary_class():
         annotation_order=[0, 1],
         auxiliary_class=2,
         k_neighbours=1,
-        min_counts=0,
+        min_counts=None,
     )
 
     """Explanation of expected:
