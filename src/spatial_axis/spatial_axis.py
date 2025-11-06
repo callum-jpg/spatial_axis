@@ -32,6 +32,7 @@ def spatial_axis(
     normalise: bool = True,
     reference_cell_type: str = None,
     distance_threshold: float = None,
+    distance_k_neighbors: int = None,
     scaling_factor: float = None,
     min_counts: int = 50,
     # broad_annotation_weights, # TODO: add this
@@ -82,6 +83,10 @@ def spatial_axis(
         Reference cell type for spatial filtering.
     distance_threshold : float, optional
         Distance threshold for spatial filtering.
+    distance_k_neighbors : int, optional
+        If provided, only keep query cells if they have at least distance_k_neighbors
+        reference cells within the distance_threshold. If None, at least 1 neighbor 
+        within threshold is required to keep the query cell.
 
     Returns
     -------
@@ -175,6 +180,7 @@ def spatial_axis(
                 reference_cell = reference_cell_type or annotation_order[0],
                 new_celltype = annotation_order[0],
                 distance_threshold = distance_threshold,
+                distance_k_neighbors = distance_k_neighbors,
             )
         # Directly load centroid class from anndata
         centroid_class = data.obs[annotation_column].to_numpy()

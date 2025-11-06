@@ -10,13 +10,20 @@ def spatial_celltype_filter(
     adata, 
     celltype_col: str, 
     query_cell: str,
+    distance_threshold: int,
     reference_cell: str = None, 
     new_celltype: str = None, 
-    distance_threshold=20,
-    spatial_obsm_key="spatial",
+    spatial_obsm_key: str = "spatial",
+    distance_k_neighbors: int = None,
 ):
     """
     Create a new cell type based on spatial proximity conditions.
+
+    Measures the distance between the query_cell and the reference_cell.
+
+    query_cell and reference_cell can have the same label. In this scenario,
+    it ensures that query_cells are only kept if in close spatial proximity
+    to other query_cells.
     
     Parameters:
     -----------
@@ -34,6 +41,10 @@ def spatial_celltype_filter(
         Distance threshold in pixels (default: 20)
     spatial_coords : list
         Names of spatial coordinate columns in adata.obs (default: ['x', 'y'])
+    distance_k_neighbors : int, optional
+        If provided, only keep query cells if they have at least distance_k_neighbors
+        reference cells within the distance_threshold. If None, at least 1 neighbor 
+        within threshold is required to keep the query cell.
     
     Returns:
     --------
@@ -59,13 +70,13 @@ def spatial_celltype_filter(
     # Get the XY spatial coords
     coords = adata.obsm[spatial_obsm_key]
     
-    # Get indices of query_cell and reference_cell
+    # Get indices of query_cell
     query_cell_mask = adata.obs[celltype_col].isin(query_cell)
     
-    # If there's a reference_cell, get the mask for this
+    # If there's a reference_cell, get the indices for this
     if reference_cell is not None:
         reference_cell_mask = adata.obs[celltype_col].isin(reference_cell)
-    # Otherwise, we will be looking at distances to other cells
+    # Otherwise, we will be looking at distances to other query_cells
     else:
         reference_cell_mask = adata.obs[celltype_col].isin(query_cell)
     
@@ -87,10 +98,18 @@ def spatial_celltype_filter(
     # Remove distances of cells to self from consideration
     if numpy.array_equal(coords_a, coords_b):
         numpy.fill_diagonal(distances, numpy.nan)
-    
-    # Find query_cell cells that are within threshold distance of any reference_cell
-    min_distances = numpy.nanmin(distances, axis=1)
-    close_cells_mask = min_distances <= distance_threshold
+
+    # Determine which query cells meet the proximity criteria
+    if distance_k_neighbors is None:
+        # Original behavior: at least 1 neighbor within threshold
+        min_distances = numpy.nanmin(distances, axis=1)
+        close_cells_mask = min_distances <= distance_threshold
+    else:
+        # K-neighbors behavior: at least distance_k_neighbors within threshold
+        # Count how many reference cells are within threshold for each query cell
+        within_threshold = distances <= distance_threshold
+        neighbor_counts = numpy.sum(within_threshold, axis=1)
+        close_cells_mask = neighbor_counts >= distance_k_neighbors
     
     # Get the indices of query_cell cells that should become new_celltype
     query_cell_indices = numpy.where(query_cell_mask)[0]
