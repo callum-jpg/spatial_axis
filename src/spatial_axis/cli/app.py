@@ -129,6 +129,9 @@ def calculate(config_file: str):
             exclusion_value=config.get("exclusion_value"),
             auxiliary_class=config.get("auxiliary_class"),
             normalise=config.get("normalise", True),
+            reference_cell_type=config.get("reference_cell_type", None),
+            distance_threshold=config.get("distance_threshold", None),
+            scaling_factor=config.get("scaling_factor", None),
         )
         data.obs[added_spatial_axis_key] = sp_ax
         
