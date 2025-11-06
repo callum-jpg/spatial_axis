@@ -35,6 +35,8 @@ def spatial_axis(
     distance_k_neighbors: int = None,
     scaling_factor: float = None,
     min_counts: int = 50,
+    sampling_method: str = "centroids",
+    hex_spacing: float = None,
     # broad_annotation_weights, # TODO: add this
 ) -> numpy.ndarray:
     """Calculate relative positioning of cells along a spatial axis.
@@ -85,8 +87,15 @@ def spatial_axis(
         Distance threshold for spatial filtering.
     distance_k_neighbors : int, optional
         If provided, only keep query cells if they have at least distance_k_neighbors
-        reference cells within the distance_threshold. If None, at least 1 neighbor 
+        reference cells within the distance_threshold. If None, at least 1 neighbor
         within threshold is required to keep the query cell.
+    sampling_method : str, default="centroids"
+        Method for spatial sampling. Options:
+        - "centroids": Use cell centroids directly (default)
+        - "uniform": Use uniform hexagonal grid sampling
+    hex_spacing : float, optional
+        Distance between hexagon centers when sampling_method="uniform".
+        Required if using uniform sampling.
 
     Returns
     -------
@@ -137,6 +146,16 @@ def spatial_axis(
     """
 
     validate_input(data, broad_annotations)
+
+    # Validate sampling method parameters
+    if sampling_method not in ["centroids", "uniform"]:
+        raise ValueError(f"sampling_method must be 'centroids' or 'uniform', got '{sampling_method}'")
+
+    if sampling_method == "uniform" and hex_spacing is None:
+        raise ValueError("hex_spacing must be provided when sampling_method='uniform'")
+
+    if hex_spacing is not None and hex_spacing <= 0:
+        raise ValueError(f"hex_spacing must be positive, got {hex_spacing}")
 
     if len(annotation_order) == 1:
         log.warn(
@@ -191,6 +210,74 @@ def spatial_axis(
         centroid_class is not None
     ), "Cannot define centroid class. Ensure you provide either broad_annotations or annotation_column."
 
+    # Handle uniform hexagonal sampling
+    if sampling_method == "uniform":
+        log.info(f"Using uniform hexagonal sampling with spacing={hex_spacing}")
+
+        # Generate hexagonal grid
+        hex_centers = _generate_hexagonal_grid(
+            centroids=centroids,
+            hex_spacing=hex_spacing,
+        )
+
+        # Assign annotations to hexagons based on nearest cell
+        hex_annotations = _assign_hexagon_annotations(
+            hex_centers=hex_centers,
+            cell_centroids=centroids,
+            cell_annotations=centroid_class,
+        )
+
+        # Create mapping from cells to hexagons for later
+        hex_to_cell_mapping = _map_hexagons_to_cells(
+            hex_centers=hex_centers,
+            cell_centroids=centroids,
+        )
+
+        # Compute spatial axis using hexagon centers
+        all_dist = _spatial_axis(
+            centroids=hex_centers,
+            centroid_class=hex_annotations,
+            class_order=annotation_order,
+            k_neighbours=k_neighbours,
+            auxiliary_class=auxiliary_class,
+        )
+
+        # Handle missing annotations in hexagons before computing relative positioning
+        if missing_annotation_method is not None:
+            if missing_annotation_method.casefold() == "replace":
+                assert (
+                    replace_value >= -1 and replace_value <= 1
+                ), "replace_value must be >= -1 and <= 1"
+                all_dist = numpy.nan_to_num(all_dist, nan=replace_value)
+            elif missing_annotation_method.casefold() == "knn":
+                from sklearn.impute import KNNImputer
+
+                imputer = KNNImputer(n_neighbors=k_neighbours)
+                all_dist = imputer.fit_transform(all_dist)
+
+        # Compute relative positioning for hexagons
+        hex_relative_distance = compute_relative_positioning(
+            all_dist, weights=weights, normalise=normalise
+        )
+
+        # Map hexagon values back to cells
+        relative_distance = _map_hex_values_to_cells(
+            hex_values=hex_relative_distance,
+            hex_to_cell_mapping=hex_to_cell_mapping,
+        )
+
+        # Apply class exclusion if specified
+        if class_to_exclude is not None:
+            relative_distance = _class_exclusion(
+                distances=relative_distance,
+                centroid_class=centroid_class,
+                class_to_exclude=class_to_exclude,
+                exclusion_value=exclusion_value,
+            )
+
+        return relative_distance
+
+    # Use standard centroid-based approach
     all_dist = _spatial_axis(
         centroids=centroids,
         centroid_class=centroid_class,
@@ -508,3 +595,119 @@ def get_label_centroids(
     centroids = numpy.vstack([*props.values()]).T
 
     return centroids, labels
+
+
+def _generate_hexagonal_grid(
+    centroids: numpy.ndarray,
+    hex_spacing: float,
+) -> numpy.ndarray:
+    """Generate a hexagonal grid covering the spatial extent of centroids.
+
+    Args:
+        centroids: Array of (x, y) coordinates for all cells
+        hex_spacing: Distance between adjacent hexagon centers
+        orientation: "pointy" for pointy-top or "flat" for flat-top hexagons
+
+    Returns:
+        numpy.ndarray: Array of (x, y) coordinates for hexagon centers
+    """
+    # Compute bounding box with buffer
+    min_x, min_y = centroids.min(axis=0)
+    max_x, max_y = centroids.max(axis=0)
+
+    # Add buffer equal to hex_spacing to ensure coverage
+    buffer = hex_spacing * 2
+    min_x -= buffer
+    min_y -= buffer
+    max_x += buffer
+    max_y += buffer
+
+    hex_centers = []
+
+    # For pointy-top hexagons
+    # Horizontal spacing: 1.5 * spacing
+    # Vertical spacing: sqrt(3) * spacing
+    horizontal_spacing = 1.5 * hex_spacing
+    vertical_spacing = numpy.sqrt(3) * hex_spacing
+
+    # Generate grid
+    row = 0
+    y = min_y
+    while y <= max_y:
+        x_offset = (hex_spacing * 0.5) if (row % 2 == 1) else 0
+        x = min_x + x_offset
+        while x <= max_x:
+            hex_centers.append([x, y])
+            x += horizontal_spacing
+        y += vertical_spacing
+        row += 1
+
+    return numpy.array(hex_centers)
+
+
+def _map_hexagons_to_cells(
+    hex_centers: numpy.ndarray,
+    cell_centroids: numpy.ndarray,
+) -> numpy.ndarray:
+    """Map each cell to its nearest hexagon.
+
+    Args:
+        hex_centers: Array of (x, y) coordinates for hexagon centers
+        cell_centroids: Array of (x, y) coordinates for cell centroids
+
+    Returns:
+        numpy.ndarray: Array of hexagon indices, one per cell
+    """
+    # Build cKDTree from hexagon centers
+    tree = scipy.spatial.cKDTree(hex_centers)
+
+    # Query nearest hexagon for each cell
+    _, hex_indices = tree.query(cell_centroids, k=1)
+
+    return hex_indices
+
+
+def _assign_hexagon_annotations(
+    hex_centers: numpy.ndarray,
+    cell_centroids: numpy.ndarray,
+    cell_annotations: numpy.ndarray,
+) -> numpy.ndarray:
+    """Assign annotations to hexagons based on nearest cell.
+
+    Args:
+        hex_centers: Array of (x, y) coordinates for hexagon centers
+        cell_centroids: Array of (x, y) coordinates for cell centroids
+        cell_annotations: Array of annotation labels for each cell
+
+    Returns:
+        numpy.ndarray: Array of annotation labels for each hexagon (NaN if no nearby cells)
+    """
+    # Build cKDTree from cell centroids
+    tree = scipy.spatial.cKDTree(cell_centroids)
+
+    # Query nearest cell for each hexagon
+    distances, cell_indices = tree.query(hex_centers, k=1)
+
+    # Assign annotation from nearest cell
+    hex_annotations = cell_annotations[cell_indices]
+
+    return hex_annotations
+
+
+def _map_hex_values_to_cells(
+    hex_values: numpy.ndarray,
+    hex_to_cell_mapping: numpy.ndarray,
+) -> numpy.ndarray:
+    """Map spatial axis values from hexagons back to cells.
+
+    Args:
+        hex_values: Spatial axis values computed for each hexagon
+        hex_to_cell_mapping: Array mapping each cell to its hexagon index
+
+    Returns:
+        numpy.ndarray: Spatial axis values for each cell
+    """
+    # Direct assignment: each cell gets the value from its assigned hexagon
+    cell_values = hex_values[hex_to_cell_mapping]
+
+    return cell_values
