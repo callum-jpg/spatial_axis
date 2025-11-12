@@ -528,7 +528,7 @@ def compute_relative_positioning(
         distances = distances[..., 0]
         if normalise:
             # Min-max scale data
-            distances = (distances - distances.min()) / (distances.max() - distances.min())
+            distances = mms(distances)
         else:
             log.info(f"Only a single discrete annotation was provided, so the euclidean distance this annotation will be returned.")
         return distances
@@ -567,12 +567,6 @@ def compute_relative_positioning(
     inter_class_distances = inter_class_distances * _weights
 
     inter_class_distances = numpy.nansum(inter_class_distances, axis=0)
-
-    def mms(x, lower=0, upper=1):
-        mi = x.min()
-        ma = x.max()
-
-        return (upper - lower) * (x - mi) / (ma - mi + 1e-6) + lower
 
     inter_class_distances = mms(inter_class_distances)
 
@@ -719,3 +713,9 @@ def _map_hex_values_to_cells(
     cell_values = hex_values[hex_to_cell_mapping]
 
     return cell_values
+
+def mms(x, lower=0, upper=1):
+    mi = x.min()
+    ma = x.max()
+
+    return (upper - lower) * (x - mi) / (ma - mi + 1e-6) + lower
