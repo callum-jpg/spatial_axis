@@ -568,6 +568,14 @@ def compute_relative_positioning(
 
     inter_class_distances = numpy.nansum(inter_class_distances, axis=0)
 
+    def mms(x, lower=0, upper=1):
+        mi = x.min()
+        ma = x.max()
+
+        return (upper - lower) * (x - mi) / (ma - mi + 1e-6) + lower
+
+    inter_class_distances = mms(inter_class_distances)
+
     return inter_class_distances
 
 
