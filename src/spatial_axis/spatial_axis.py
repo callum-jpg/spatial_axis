@@ -84,7 +84,8 @@ def spatial_axis(
     reference_cell_type : str, optional
         Reference cell type for spatial filtering.
     distance_threshold : float, optional
-        Distance threshold for spatial filtering.
+        Distance threshold for spatial filtering. This is the distance after scaling_factor
+        has been applied, if applicable.
     distance_k_neighbors : int, optional
         If provided, only keep query cells if they have at least distance_k_neighbors
         reference cells within the distance_threshold. If None, at least 1 neighbor
@@ -96,6 +97,9 @@ def spatial_axis(
     hex_spacing : float, optional
         Distance between hexagon centers when sampling_method="uniform".
         Required if using uniform sampling.
+    scaling_factor : int, optional
+        Scale distances, such as from euclidean distance to microns. Not recommended
+        if k_neighbours > 1.
 
     Returns
     -------
