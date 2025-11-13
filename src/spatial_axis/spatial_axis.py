@@ -171,8 +171,10 @@ def spatial_axis(
 
     if isinstance(data, anndata.AnnData) and min_counts is not None:
         import scanpy
-        log.info(f"Filtering cells with less than {min_counts} transcripts.")
+        orig_n_cell = data.shape[0]
         scanpy.pp.filter_cells(data, min_counts=min_counts)
+        filtered_n_cell = data.shape[0]
+        log.info(f"{orig_n_cell - filtered_n_cell} cells had less than {min_counts} transcripts and were filtered.")
 
     if broad_annotations is not None and annotation_column is not None:
         raise ValueError(
