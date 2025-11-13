@@ -96,7 +96,7 @@ def spatial_celltype_filter(
     distances = cdist(coords_a, coords_b)
 
     # Remove distances of cells to self from consideration
-    if numpy.array_equal(coords_a, coords_b):
+    if numpy.array_equal(coords_a, coords_b) and len(distances) > 1:
         numpy.fill_diagonal(distances, numpy.nan)
 
     # Determine which query cells meet the proximity criteria
