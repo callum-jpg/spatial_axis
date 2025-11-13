@@ -206,6 +206,11 @@ def spatial_axis(
         # Directly load centroid class from anndata
         centroid_class = data.obs[annotation_column].to_numpy()
 
+        # Delete the spatial_filter column.
+        # This is mainly for spatialdata Zarr saving, 
+        # which does not support object dtype NaN values.
+        data.obs = data.obs.drop(annotation_column, axis=1)
+
     assert len(list(set(annotation_order).intersection(set(centroid_class)))) > 0, "No elements of annotation_order were found in cell classes."
 
     assert (
