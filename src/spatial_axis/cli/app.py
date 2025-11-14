@@ -108,6 +108,7 @@ def calculate(config_file: str):
                 normalise=config.get("normalise", True),
                 reference_cell_type=config.get("reference_cell_type", None),
                 distance_threshold=config.get("distance_threshold", None),
+                distance_k_neighbors=config.get("distance_k_neighbors", None),
                 scaling_factor=config.get("scaling_factor", None),
             )
 
@@ -131,6 +132,7 @@ def calculate(config_file: str):
             normalise=config.get("normalise", True),
             reference_cell_type=config.get("reference_cell_type", None),
             distance_threshold=config.get("distance_threshold", None),
+            distance_k_neighbors=config.get("distance_k_neighbors", None),
             scaling_factor=config.get("scaling_factor", None),
         )
         data.obs[added_spatial_axis_key] = sp_ax
