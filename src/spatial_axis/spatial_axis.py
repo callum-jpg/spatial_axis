@@ -733,4 +733,4 @@ def mms(x, lower=0, upper=1):
     mi = x.min()
     ma = x.max()
 
-    return (upper - lower) * (x - mi) / (ma - mi + 1e-6) + lower
+    return (upper - lower) * (x - mi) / (ma - mi + 1e-8) + lower
