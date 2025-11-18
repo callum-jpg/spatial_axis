@@ -198,7 +198,7 @@ def spatial_axis(
         if reference_cell_type is not None or distance_threshold is not None:
             assert len(annotation_order) == 1, f"Cell filtering only supports annotation_order of len 1. Got {len(annotation_order)}"
             
-            annotation_column = spatial_celltype_filter(
+            annotation_column_filtered = spatial_celltype_filter(
                 adata=data,
                 celltype_col=annotation_column,
                 query_cell=annotation_order[0],
@@ -207,13 +207,17 @@ def spatial_axis(
                 distance_threshold = distance_threshold,
                 distance_k_neighbors = distance_k_neighbors,
             )
-        # Directly load centroid class from anndata
-        centroid_class = data.obs[annotation_column].to_numpy()
+        
+            # Directly load centroid class from anndata
+            centroid_class = data.obs[annotation_column_filtered].to_numpy()
 
-        # Delete the spatial_filter column.
-        # This is mainly for spatialdata Zarr saving, 
-        # which does not support object dtype NaN values.
-        data.obs = data.obs.drop(annotation_column, axis=1)
+            # Delete the spatial_filter column.
+            # This is mainly for spatialdata Zarr saving, 
+            # which does not support object dtype NaN values.
+            data.obs = data.obs.drop(annotation_column_filtered, axis=1)
+
+        else:
+            centroid_class = data.obs[annotation_column].to_numpy()
 
     assert len(list(set(annotation_order).intersection(set(centroid_class)))) > 0, "No elements of annotation_order were found in cell classes."
 
